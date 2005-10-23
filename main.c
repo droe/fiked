@@ -1,5 +1,5 @@
 /*
- * ISAKMP MITM for Cisco PSK+XAUTH.
+ * IKE MITM for Cisco PSK+XAUTH.
  * Copyright (C) 2005, Daniel Roethlisberger <daniel@roe.ch>
  * 
  * All rights reserved.  This is unpublished work.  Unauthorized use,
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 
 	/* XXX getopt */
 
-	printf("ISAKMP MITM for Cisco PSK+XAUTH\n");
+	printf("IKE MITM for Cisco PSK+XAUTH\n");
 	printf("Copyright (C) 2005, Daniel Roethlisberger <daniel@roe.ch>\n");
 
 	int sockfd = open_udp_socket(ISAKMP_PORT);
