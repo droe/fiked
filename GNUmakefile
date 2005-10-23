@@ -17,14 +17,17 @@ CSTD=-std=c99
 
 all: $(PGM)
 
-$(PGM): isakmp-pkt.o datagram.o main.o
+$(PGM): isakmp-pkt.o datagram.o peer_ctx.o ike.o main.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
 isakmp-pkt.o:
 	cd isakmp && $(MAKE) $@
 	ln -s isakmp/$@ $@
 
-%.o: %.c
+main.o: main.c isakmp/isakmp.h isakmp/isakmp-pkt.h datagram.h peer_ctx.h ike.h
+	$(CC) $(CFLAGS) $(CSTD) -c -o $@ $<
+
+%.o: %.c %.h
 	$(CC) $(CFLAGS) $(CSTD) -c -o $@ $<
 
 clean:
