@@ -226,6 +226,9 @@ void ike_process_aggressive(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
 	}
 }
 
+/*
+ * Process an incoming IKE/ISAKMP packet.
+ */
 void ike_process_isakmp(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
 {
 	/*fprintf(stderr,
@@ -251,3 +254,4 @@ void ike_process_isakmp(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
 			break;
 	}
 }
+
