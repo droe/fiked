@@ -11,37 +11,34 @@
 
 
 
----[ Overview
+// Overview
 
 This is a proof of concept implementation of MITM on XAUTH as used
 and advertised by Cisco in their VPN Concentrator 3000 product line.
 
+This implementation is very limited in scope, it only works in very
+specific environments.  The only supported type of MITM is IKE in
+Aggressive Mode using PreShared Keys (PSK) and XAUTH.  The only
+supported algorithm suite is 3DES-CBC, MD5, DH group 2.  It is not
+supposed to be a comprehensive MITM implementation.  The only aim
+is to demonstrate that using PSK+XAUTH in aggressive mode as
+advertised by Cisco is a bad idea security-wise.
+
+Actually, xauth-mitm is a misnomer, as it does not implement a full
+MITM attack, it just impersonates a VPN gateway to grab XAUTH user
+credentials.
 
 
----[ MITM Specs
 
-The only supported type of MITM is IKE in Aggressive Mode using
-PreShared Keys (PSK) and XAUTH.
-
-Actually, this is not a full MITM, only VPN gateway impersonation.
-
-The IKE exchange is being done up to the point where the XAUTH
-credentials are received from the client, then the client is
-signalled an error.
-
-
-
----[ Attack Setup
+// Attack Setup
 
 To successfully use xauth-mitm, you must be able to intercept the
 IKE traffic between the clients and the VPN gateway.  Ways to
 achieve this include posing as a legit 802.11 access point using
 hostap, transparently tapping into Ethernet cables at a suitable
-location, and ARP spoofing.
-
-Whichever method you choose, you will need to redirect the IKE
-traffic to your local instance of xauth-mitm using your favourite
-firewall (eg. pf, iptables).
+location, and ARP spoofing.  Whichever method you choose, you will
+need to redirect the IKE traffic to your local instance of
+xauth-mitm using your favourite firewall (eg. pf, iptables).
 
 If you don't know how to set all this up, you probably should not
 be running xauth-mitm in the first place.  I will not answer any
@@ -49,12 +46,11 @@ support requests of this kind.
 
 
 
----[ Further Reading
+// Further Reading
 
 http://ipsec-wit.antd.nist.gov/newipsecdoc/pluto.html
 http://www.faqs.org/rfcs/rfc2407.html
 http://www.faqs.org/rfcs/rfc2408.html
 http://www.faqs.org/rfcs/rfc2409.html
-
 
 
