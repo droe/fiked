@@ -7,9 +7,9 @@
 # 
 # $Id$
 
-CC?=gcc
-CFLAGS?=-g -Wall -pedantic
-LDFLAGS?=-g -Wall -pedantic
+CC=gcc
+CFLAGS?=-g -Wall -pedantic-errors
+LDFLAGS?=-g -Wall -pedantic-errors
 
 PGM=xauth-mitm
 
@@ -21,7 +21,8 @@ $(PGM): isakmp-pkt.o datagram.o peer_ctx.o ike.o main.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
 isakmp-pkt.o:
-	cd isakmp && $(MAKE) $@
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" CSTD="$(CSTD)" \
+		$(MAKE) -C isakmp $@
 	ln -s isakmp/$@ $@
 
 main.o: main.c isakmp/isakmp.h isakmp/isakmp-pkt.h datagram.h peer_ctx.h ike.h
@@ -32,6 +33,7 @@ main.o: main.c isakmp/isakmp.h isakmp/isakmp-pkt.h datagram.h peer_ctx.h ike.h
 
 clean:
 	rm -rf *.o *.core $(PGM)
-	cd isakmp && $(MAKE) clean
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" CSTD="$(CSTD)" \
+		$(MAKE) -C isakmp clean
 
 .PHONY: all clean isakmp

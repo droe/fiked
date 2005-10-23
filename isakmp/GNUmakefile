@@ -7,12 +7,6 @@
 # 
 # $Id$
 
-CC?=gcc
-CFLAGS?=-g -Wall -pedantic
-LDFLAGS?=-g -Wall -pedantic
-
-CSTD=-std=c99
-
 all: isakmp-pkt.o
 
 isakmp-pkt.o: isakmp-pkt.c isakmp-pkt.h isakmp.h
