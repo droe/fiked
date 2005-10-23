@@ -24,6 +24,7 @@ typedef struct _datagram {
 	struct sockaddr_in peer_addr;
 } datagram;
 
+datagram * new_datagram(size_t size);
 void free_datagram(datagram *dgm);
 int open_udp_socket(uint16_t port);
 datagram * receive_datagram(int s);

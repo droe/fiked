@@ -14,12 +14,9 @@
 
 #include "peer_ctx.h"
 #include "isakmp/isakmp-pkt.h"
-/*
-#include "isakmp/isakmp.h"
-*/
 
 #define IKE_PORT	500
 
-void ike_process(int s, peer_ctx *ctx, struct isakmp_packet *ikp);
+void ike_process_isakmp(int s, peer_ctx *ctx, struct isakmp_packet *ikp);
 
 #endif /* IKE_H */

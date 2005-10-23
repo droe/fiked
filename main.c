@@ -31,6 +31,7 @@
  */
 int main(int argc, char *argv[])
 {
+	srandomdev();
 
 	/* XXX getopt */
 
@@ -48,7 +49,7 @@ int main(int argc, char *argv[])
 		dgm = receive_datagram(sockfd);
 		ctx = get_peer_ctx(dgm);
 		ikp = parse_isakmp_packet(dgm->data, dgm->len, &reject);
-		ike_process(sockfd, ctx, ikp);
+		ike_process_isakmp(sockfd, ctx, ikp);
 		free_datagram(dgm);
 	}
 

@@ -19,6 +19,18 @@
 #include <stdlib.h>
 #include <string.h>
 
+datagram * new_datagram(size_t size)
+{
+	if(size == 0)
+		size = UDP_DGM_MAXSIZE;
+	datagram *dgm = (datagram*)malloc(sizeof(datagram));
+	memset(dgm, 0, sizeof(datagram));
+	dgm->len = size;
+	dgm->data = (uint8_t*)malloc(dgm->len);
+	memset(dgm->data, 0, sizeof(dgm->len));
+	return dgm;
+}
+
 void free_datagram(datagram *dgm)
 {
 	if(dgm) {
@@ -72,9 +84,7 @@ datagram * receive_datagram(int s)
 		exit(-1);
 	}
 
-	datagram *dgm = (datagram*)malloc(sizeof(datagram));
-	dgm->len = ret;
-	dgm->data = (uint8_t*)malloc(dgm->len);
+	datagram *dgm = new_datagram(ret);
 	memcpy(dgm->data, buf, dgm->len);
 	dgm->peer_addr = sa;
 

@@ -20,7 +20,9 @@
 typedef struct _peer_ctx {
 	struct sockaddr_in peer_addr; /* primary key */
 	struct _peer_ctx *next;
-	/* int state; */
+	enum {
+		STATE_NEW,
+	} state;
 } peer_ctx;
 
 peer_ctx * get_peer_ctx(datagram *dgm);

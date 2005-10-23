@@ -32,6 +32,7 @@ peer_ctx * get_peer_ctx(datagram *dgm)
 		memset(found, 0, sizeof(peer_ctx));
 		found->peer_addr = dgm->peer_addr;
 		found->next = head;
+		found->state = STATE_NEW;
 		head = found;
 	}
 
