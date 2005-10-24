@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 	/* XXX getopt */
 
 	printf("IKE MITM for Cisco PSK+XAUTH\n");
-	printf("Copyright (C) 2005, Daniel Roethlisberger <daniel@roe.ch>\n");
+	/*printf("Copyright (C) 2005, Daniel Roethlisberger <daniel@roe.ch>\n");*/
 
 	int sockfd = open_udp_socket(IKE_PORT);
 	printf("Listening on %d/udp...\n", IKE_PORT);
@@ -49,7 +49,14 @@ int main(int argc, char *argv[])
 		dgm = receive_datagram(sockfd);
 		ctx = get_peer_ctx(dgm);
 		ikp = parse_isakmp_packet(dgm->data, dgm->len, &reject);
-		ike_process_isakmp(sockfd, ctx, ikp);
+		if(reject) {
+			fprintf(stderr, "[%s:%d]: illegal ISAKMP packet (%d)\n",
+				inet_ntoa(ctx->peer_addr.sin_addr),
+				ntohs(ctx->peer_addr.sin_port),
+				reject);
+		} else {
+			ike_process_isakmp(sockfd, ctx, ikp);
+		}
 		free_datagram(dgm);
 	}
 
