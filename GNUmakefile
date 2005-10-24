@@ -20,10 +20,12 @@ all: $(PGM)
 $(PGM): isakmp-pkt.o datagram.o peer_ctx.o ike.o main.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
-isakmp-pkt.o:
+subdirs:
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" CSTD="$(CSTD)" \
-		$(MAKE) -C isakmp $@
-	ln -s isakmp/$@ $@
+		$(MAKE) -C isakmp all
+
+isakmp-pkt.o: subdirs
+	ln -sf isakmp/$@ $@
 
 main.o: main.c isakmp/isakmp.h isakmp/isakmp-pkt.h datagram.h peer_ctx.h ike.h
 	$(CC) $(CFLAGS) $(CSTD) -c -o $@ $<
@@ -36,4 +38,4 @@ clean:
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" CSTD="$(CSTD)" \
 		$(MAKE) -C isakmp clean
 
-.PHONY: all clean isakmp
+.PHONY: all clean subdirs
