@@ -15,11 +15,9 @@
 #include "isakmp/isakmp-pkt.h"
 #include "isakmp/isakmp.h"
 
-/*
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-*/
 #include <arpa/inet.h>
 #include <errno.h>
 #include <stdio.h>
@@ -33,7 +31,7 @@ int main(int argc, char *argv[])
 {
 	srandomdev();
 
-	/* XXX getopt */
+	/* XXX: getopt */
 
 	printf("IKE MITM for Cisco PSK+XAUTH\n");
 	/*printf("Copyright (C) 2005, Daniel Roethlisberger <daniel@roe.ch>\n");*/

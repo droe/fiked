@@ -22,6 +22,8 @@ typedef struct _peer_ctx {
 	struct _peer_ctx *next;
 	enum {
 		STATE_NEW,
+		STATE_PHASE1_RESPONDED,
+		STATE_PHASE1_COMPLETE,
 	} state;
 } peer_ctx;
 
