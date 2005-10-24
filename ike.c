@@ -155,7 +155,7 @@ void ike_process_aggressive_new(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
 
 		default:
 			fprintf(stderr,
-				"[%s:%d]: unhandled payload type 0x%02x\n",
+				"[%s:%d]: unhandled payload type 0x%02x in aggressive_new, ignored\n",
 				inet_ntoa(ctx->peer_addr.sin_addr),
 				ntohs(ctx->peer_addr.sin_port),
 				p->type);
@@ -165,7 +165,7 @@ void ike_process_aggressive_new(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
 	/* do we have all payloads? */
 	if(!(sa && ke && nonce && id)) {
 		fprintf(stderr,
-			"[%s:%d]: missing payload(s): sa=%p ke=%p nonce=%p id=%p\n",
+			"[%s:%d]: missing payload(s): sa=%p ke=%p nonce=%p id=%p, ignored\n",
 			inet_ntoa(ctx->peer_addr.sin_addr),
 			ntohs(ctx->peer_addr.sin_port),
 			(void*)sa, (void*)ke, (void*)nonce, (void*)id);
@@ -199,6 +199,8 @@ void ike_process_aggressive_new(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
 	flatten_isakmp_packet(r, &dgm->data, &dgm->len, 8);
 	dgm->peer_addr = ctx->peer_addr;
 	send_datagram(s, dgm);
+
+	/* XXX: state transition */
 }
 
 /*
@@ -213,7 +215,7 @@ void ike_process_aggressive(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
 
 	switch(ctx->state) {
 		case STATE_NEW:
-			printf("[%s:%d] IKE aggressive mode session initiated\n",
+			printf("[%s:%d]: IKE aggressive mode session initiated\n",
 				inet_ntoa(ctx->peer_addr.sin_addr),
 				ntohs(ctx->peer_addr.sin_port));
 			ike_process_aggressive_new(s, ctx, ikp);
@@ -224,6 +226,41 @@ void ike_process_aggressive(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
 			exit(-1);
 			break;
 	}
+}
+
+/*
+ * Process an IKE Informational packet.
+ */
+void ike_process_informational(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
+{
+	/*fprintf(stderr, "ISAKMP_EXCHANGE_INFORMATIONAL\n");*/
+
+	for(struct isakmp_payload *p = ikp->payload; p; p = p->next) {
+	switch(p->type) {
+		case ISAKMP_PAYLOAD_N:
+			/*fprintf(stderr, "ISAKMP_PAYLOAD_N\n");*/
+			if(p->u.n.type == ISAKMP_N_INVALID_PAYLOAD_TYPE) {
+				fprintf(stderr,
+					"[%s:%d]: error from peer: invalid payload type, resetting state\n",
+					inet_ntoa(ctx->peer_addr.sin_addr),
+					ntohs(ctx->peer_addr.sin_port));
+			} else {
+				fprintf(stderr,
+					"[%s:%d]: unhandled notification type 0x%02x in informational, ignored\n",
+					inet_ntoa(ctx->peer_addr.sin_addr),
+					ntohs(ctx->peer_addr.sin_port),
+					p->u.n.type);
+			}
+			break;
+
+		default:
+			fprintf(stderr,
+				"[%s:%d]: unhandled payload type 0x%02x in informational, ignored\n",
+				inet_ntoa(ctx->peer_addr.sin_addr),
+				ntohs(ctx->peer_addr.sin_port),
+				p->type);
+			break;
+	}}
 }
 
 /*
@@ -243,6 +280,10 @@ void ike_process_isakmp(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
 	switch(ikp->exchange_type) {
 		case ISAKMP_EXCHANGE_AGGRESSIVE:
 			ike_process_aggressive(s, ctx, ikp);
+			break;
+
+		case ISAKMP_EXCHANGE_INFORMATIONAL:
+			ike_process_informational(s, ctx, ikp);
 			break;
 
 		default:
