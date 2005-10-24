@@ -244,6 +244,7 @@ void ike_process_informational(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
 					"[%s:%d]: error from peer: invalid payload type, resetting state\n",
 					inet_ntoa(ctx->peer_addr.sin_addr),
 					ntohs(ctx->peer_addr.sin_port));
+					ctx->state = STATE_NEW;
 			} else {
 				fprintf(stderr,
 					"[%s:%d]: unhandled notification type 0x%02x in informational, ignored\n",
