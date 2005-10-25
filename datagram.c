@@ -72,24 +72,27 @@ int open_udp_socket(uint16_t port)
  * Blocks until a datagram is received.
  * Will quit on errors.
  */
-datagram * receive_datagram(int s)
+datagram * receive_datagram(int sockfd)
 {
 	char buf[UDP_DGM_MAXSIZE];
 	struct sockaddr_in sa;
 	socklen_t sa_len = sizeof(sa);
-	int ret = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *)&sa, &sa_len);
+	int ret = recvfrom(sockfd, buf, sizeof(buf), 0,
+		(struct sockaddr *)&sa, &sa_len);
 	if(ret < 0) {
 		fprintf(stderr, "FATAL: recvfrom(%d) returned %d: %s (%d)\n",
-			s, ret, strerror(errno), errno);
+			sockfd, ret, strerror(errno), errno);
 		exit(-1);
 	}
 
 	datagram *dgm = new_datagram(ret);
 	memcpy(dgm->data, buf, dgm->len);
 	dgm->peer_addr = sa;
+	dgm->sockfd = sockfd;
 
 /*
-	fprintf(stderr, "LOG: recv from %s:%d\n", inet_ntoa(dgm->peer_addr.sin_addr),
+	fprintf(stderr, "LOG: recv from %s:%d\n",
+		inet_ntoa(dgm->peer_addr.sin_addr),
 		ntohs(dgm->peer_addr.sin_port));
 */
 
@@ -99,13 +102,13 @@ datagram * receive_datagram(int s)
 /*
  * Send a UDP datagram onto socket s.
  */
-void send_datagram(int s, datagram *dgm)
+void send_datagram(datagram *dgm)
 {
-	int ret = sendto(s, dgm->data, dgm->len, 0,
+	int ret = sendto(dgm->sockfd, dgm->data, dgm->len, 0,
 		(struct sockaddr*)&dgm->peer_addr, sizeof(dgm->peer_addr));
 	if(ret < 0) {
 		fprintf(stderr, "FATAL: sendto(%d to %s:%d) returned %d: %s (%d)\n",
-			s, inet_ntoa(dgm->peer_addr.sin_addr),
+			dgm->sockfd, inet_ntoa(dgm->peer_addr.sin_addr),
 			ntohs(dgm->peer_addr.sin_port),
 			ret, strerror(errno), errno);
 		exit(-1);

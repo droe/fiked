@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-peer_ctx * get_peer_ctx(datagram *dgm)
+peer_ctx * get_peer_ctx(datagram *dgm, config *cfg)
 {
 	static peer_ctx *head = NULL;
 
@@ -33,8 +33,17 @@ peer_ctx * get_peer_ctx(datagram *dgm)
 		found->peer_addr = dgm->peer_addr;
 		found->next = head;
 		found->state = STATE_NEW;
+		found->cfg = cfg;
 		head = found;
 	}
 
 	return found;
 }
+
+void reset_peer_ctx(peer_ctx *ctx)
+{
+	ctx->state = STATE_NEW;
+	memset(ctx->i_nonce, 0, NONCE_LEN);
+	memset(ctx->r_nonce, 0, NONCE_LEN);
+}
+

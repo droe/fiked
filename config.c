@@ -9,14 +9,13 @@
  * $Id$
  */
 
-#ifndef IKE_H
-#define IKE_H
+#include "config.h"
+#include <stdlib.h>
+#include <string.h>
 
-#include "peer_ctx.h"
-#include "vpnc/isakmp-pkt.h"
-
-#define IKE_PORT	500
-
-void ike_process_isakmp(peer_ctx *ctx, struct isakmp_packet *ikp);
-
-#endif /* IKE_H */
+config * new_config()
+{
+	config *cfg = malloc(sizeof(config));
+	memset(cfg, 0, sizeof(config));
+	return cfg;
+}

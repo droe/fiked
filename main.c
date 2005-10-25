@@ -38,16 +38,21 @@ int main(int argc, char *argv[])
 	printf("IKE MITM for Cisco PSK+XAUTH\n");
 	/*printf("Copyright (C) 2005, Daniel Roethlisberger <daniel@roe.ch>\n");*/
 
-	int sockfd = open_udp_socket(IKE_PORT);
-	printf("Listening on %d/udp...\n", IKE_PORT);
+	config *cfg = new_config();
+	cfg->gateway = "1.2.3.4";
+
+	printf("Impersonating VPN gateway at %s\n", cfg->gateway);
+
+	cfg->sockfd = open_udp_socket(IKE_PORT);
+	printf("Listening on %d/udp (fd=%d)...\n", IKE_PORT, cfg->sockfd);
 
 	datagram *dgm;
 	peer_ctx *ctx;
 	int reject = 0;
 	struct isakmp_packet *ikp;
 	while(1) {
-		dgm = receive_datagram(sockfd);
-		ctx = get_peer_ctx(dgm);
+		dgm = receive_datagram(cfg->sockfd);
+		ctx = get_peer_ctx(dgm, cfg);
 		ikp = parse_isakmp_packet(dgm->data, dgm->len, &reject);
 		if(reject) {
 			fprintf(stderr, "[%s:%d]: illegal ISAKMP packet (%d)\n",
@@ -55,7 +60,7 @@ int main(int argc, char *argv[])
 				ntohs(ctx->peer_addr.sin_port),
 				reject);
 		} else {
-			ike_process_isakmp(sockfd, ctx, ikp);
+			ike_process_isakmp(ctx, ikp);
 		}
 		free_datagram(dgm);
 	}

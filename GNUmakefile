@@ -18,12 +18,14 @@ PGM=xauth-mitm
 
 CSTD=-std=c99
 
+OBJS=config.o datagram.o peer_ctx.o ike.o main.o
+
 SUBDIR=vpnc
 SUBDIR_OBJS=dh.o isakmp-pkt.o math_group.o
 
 all: $(PGM)
 
-$(PGM): $(SUBDIR_OBJS) datagram.o peer_ctx.o ike.o main.o
+$(PGM): $(SUBDIR_OBJS) $(OBJS)
 	$(CC) $(LDFLAGS) $(LDOPTS) -o $@ $^ $(LIBS)
 
 subdirs:

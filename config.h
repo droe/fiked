@@ -9,14 +9,14 @@
  * $Id$
  */
 
-#ifndef IKE_H
-#define IKE_H
+#ifndef CONFIG_H
+#define CONFIG_H
 
-#include "peer_ctx.h"
-#include "vpnc/isakmp-pkt.h"
+typedef struct _config {
+	int sockfd;	/* UDP socket we listen on */
+	char *gateway;	/* IP address of VPN gateway to impersonate */
+} config;
 
-#define IKE_PORT	500
+config * new_config();
 
-void ike_process_isakmp(peer_ctx *ctx, struct isakmp_packet *ikp);
-
-#endif /* IKE_H */
+#endif /* CONFIG_H */

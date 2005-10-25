@@ -120,7 +120,7 @@ void sa_populate_from(peer_ctx* ctx, struct isakmp_payload *response, struct isa
 /*
  * Process an IKE Aggressive Mode packet in STATE_NEW.
  */
-void ike_process_aggressive_respond(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
+void ike_process_aggressive_respond(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
 	/* get the payloads */
 	struct isakmp_payload *sa = NULL;
@@ -197,21 +197,33 @@ void ike_process_aggressive_respond(int s, peer_ctx *ctx, struct isakmp_packet *
 		dh_public, dh_getlen(dh_grp));
 	p = p->next;
 
-	/* XXX: store dh params into ctx for later use, use ctx->group for group */
+/* XXX: store dh params into ctx for later use, use ctx->group for group */
 
-	/* XXX: payload: nonce_r */
+	/* payload: nonce_r */
 	gcry_create_nonce(ctx->r_nonce, sizeof(ctx->r_nonce));
 	p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_NONCE,
 		ctx->r_nonce, sizeof(ctx->r_nonce));
 	p = p->next;
 
-	/* XXX: payload: id_r */
+	/* payload: id_r */
+	p->next = new_isakmp_payload(ISAKMP_PAYLOAD_ID);
+	p = p->next;
+	p->u.id.type = ISAKMP_IPSEC_ID_IPV4_ADDR;
+	p->u.id.protocol = IPPROTO_UDP;
+	p->u.id.port = IKE_PORT;
+	p->u.id.length = sizeof(in_addr_t);
+	p->u.id.data = malloc(p->u.id.length);
+	*((in_addr_t*)p->u.id.data) = inet_addr(ctx->cfg->gateway);
+
 	/* XXX: payload: hash_r */
+
+
 
 	datagram *dgm = new_datagram(0);
 	flatten_isakmp_packet(r, &dgm->data, &dgm->len, 8);
 	dgm->peer_addr = ctx->peer_addr;
-	send_datagram(s, dgm);
+	dgm->sockfd = ctx->cfg->sockfd;
+	send_datagram(dgm);
 
 	ctx->state = STATE_PHASE1_RESPONDED;
 }
@@ -219,7 +231,7 @@ void ike_process_aggressive_respond(int s, peer_ctx *ctx, struct isakmp_packet *
 /*
  * Process an IKE Aggressive Mode packet.
  */
-void ike_process_aggressive(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
+void ike_process_aggressive(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
 	/*fprintf(stderr, "ISAKMP_EXCHANGE_AGGRESSIVE\n");*/
 
@@ -231,7 +243,7 @@ void ike_process_aggressive(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
 			printf("[%s:%d]: IKE aggressive mode session initiated\n",
 				inet_ntoa(ctx->peer_addr.sin_addr),
 				ntohs(ctx->peer_addr.sin_port));
-			ike_process_aggressive_respond(s, ctx, ikp);
+			ike_process_aggressive_respond(ctx, ikp);
 			break;
 
 		/* XXX: case STATE_PHASE1_RESPONDED:
@@ -245,7 +257,7 @@ void ike_process_aggressive(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
 			printf("[%s:%d]: aggressive mode packet in unhandled state, reset state\n",
 				inet_ntoa(ctx->peer_addr.sin_addr),
 				ntohs(ctx->peer_addr.sin_port));
-			ctx->state = STATE_NEW; /* does this make sense? */
+			reset_peer_ctx(ctx);
 			break;
 	}
 }
@@ -253,7 +265,7 @@ void ike_process_aggressive(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
 /*
  * Process an IKE Informational packet.
  */
-void ike_process_informational(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
+void ike_process_informational(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
 	/*fprintf(stderr, "ISAKMP_EXCHANGE_INFORMATIONAL\n");*/
 
@@ -262,10 +274,10 @@ void ike_process_informational(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
 		case ISAKMP_PAYLOAD_N:
 			/*fprintf(stderr, "ISAKMP_PAYLOAD_N\n");*/
 			if(p->u.n.type == ISAKMP_N_INVALID_PAYLOAD_TYPE) {
-				printf("[%s:%d]: error from peer: invalid payload type, resetting state\n",
+				printf("[%s:%d]: error from peer: invalid payload type, reset state\n",
 					inet_ntoa(ctx->peer_addr.sin_addr),
 					ntohs(ctx->peer_addr.sin_port));
-					ctx->state = STATE_NEW;
+					reset_peer_ctx(ctx);
 			} else {
 				printf("[%s:%d]: unhandled notification type 0x%02x in informational, ignored\n",
 					inet_ntoa(ctx->peer_addr.sin_addr),
@@ -286,7 +298,7 @@ void ike_process_informational(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
 /*
  * Process an incoming IKE/ISAKMP packet.
  */
-void ike_process_isakmp(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
+void ike_process_isakmp(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
 	/*fprintf(stderr,
 		"DEBUG: ISAKMP from %s:%d version=0x%02x type=0x%02x flags=0x%02x payload=0x%02x\n",
@@ -299,11 +311,11 @@ void ike_process_isakmp(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
 
 	switch(ikp->exchange_type) {
 		case ISAKMP_EXCHANGE_AGGRESSIVE:
-			ike_process_aggressive(s, ctx, ikp);
+			ike_process_aggressive(ctx, ikp);
 			break;
 
 		case ISAKMP_EXCHANGE_INFORMATIONAL:
-			ike_process_informational(s, ctx, ikp);
+			ike_process_informational(ctx, ikp);
 			break;
 
 		default:

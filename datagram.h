@@ -22,12 +22,13 @@ typedef struct _datagram {
 	size_t len;
 	uint8_t *data;
 	struct sockaddr_in peer_addr;
+	int sockfd;
 } datagram;
 
 datagram * new_datagram(size_t size);
 void free_datagram(datagram *dgm);
 int open_udp_socket(uint16_t port);
-datagram * receive_datagram(int s);
-void send_datagram(int s, datagram *dgm);
+datagram * receive_datagram(int sockfd);
+void send_datagram(datagram *dgm);
 
 #endif /* DATAGRAM_H */
