@@ -25,6 +25,8 @@ typedef struct _peer_ctx {
 		STATE_PHASE1_RESPONDED,
 		STATE_PHASE1_COMPLETE,
 	} state;
+	uint8_t i_nonce[20];
+	uint8_t r_nonce[20];
 } peer_ctx;
 
 peer_ctx * get_peer_ctx(datagram *dgm);

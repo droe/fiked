@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <gcrypt.h>
 
 /*
  * Is this a supported SA transform?
@@ -183,8 +184,8 @@ void ike_process_aggressive_respond(int s, peer_ctx *ctx, struct isakmp_packet *
 
 	/* payload: sa */
 	r->payload = new_isakmp_payload(ISAKMP_PAYLOAD_SA);
+	sa_populate_from(ctx, r->payload, sa);
 	struct isakmp_payload *p = r->payload;
-	sa_populate_from(ctx, p, sa);
 
 	/* payload: ke */
 	struct group *dh_grp;
@@ -194,10 +195,16 @@ void ike_process_aggressive_respond(int s, peer_ctx *ctx, struct isakmp_packet *
 	dh_create_exchange(dh_grp, dh_public);
 	p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_KE,
 		dh_public, dh_getlen(dh_grp));
+	p = p->next;
 
-	/* XXX: store dh params away for later use */
+	/* XXX: store dh params into ctx for later use, use ctx->group for group */
 
 	/* XXX: payload: nonce_r */
+	gcry_create_nonce(ctx->r_nonce, sizeof(ctx->r_nonce));
+	p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_NONCE,
+		ctx->r_nonce, sizeof(ctx->r_nonce));
+	p = p->next;
+
 	/* XXX: payload: id_r */
 	/* XXX: payload: hash_r */
 
