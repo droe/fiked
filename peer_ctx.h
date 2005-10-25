@@ -14,11 +14,10 @@
 
 #include "datagram.h"
 #include "config.h"
+#include "vpnc/isakmp.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-
-#define NONCE_LEN 20
 
 typedef struct _peer_ctx {
 	struct sockaddr_in peer_addr; /* primary key */
@@ -30,8 +29,8 @@ typedef struct _peer_ctx {
 		STATE_PHASE1_RESPONDED,
 		STATE_PHASE1_COMPLETE,
 	} state;
-	uint8_t i_nonce[NONCE_LEN];
-	uint8_t r_nonce[NONCE_LEN];
+	uint8_t i_nonce[ISAKMP_NONCE_LENGTH];
+	uint8_t r_nonce[ISAKMP_NONCE_LENGTH];
 } peer_ctx;
 
 peer_ctx * get_peer_ctx(datagram *dgm, config *cfg);

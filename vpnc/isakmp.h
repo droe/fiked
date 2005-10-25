@@ -332,6 +332,7 @@ enum ipsec_auth_enum {
 
 /* Other numbers.  */
 #define ISAKMP_COOKIE_LENGTH		8
+#define ISAKMP_NONCE_LENGTH		20
 #define ISAKMP_VERSION			0x10
 /* offsets */
 #define ISAKMP_EXCHANGE_TYPE_O		18

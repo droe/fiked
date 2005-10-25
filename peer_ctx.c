@@ -10,6 +10,7 @@
  */
 
 #include "peer_ctx.h"
+#include "vpnc/isakmp.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -43,7 +44,7 @@ peer_ctx * get_peer_ctx(datagram *dgm, config *cfg)
 void reset_peer_ctx(peer_ctx *ctx)
 {
 	ctx->state = STATE_NEW;
-	memset(ctx->i_nonce, 0, NONCE_LEN);
-	memset(ctx->r_nonce, 0, NONCE_LEN);
+	memset(ctx->i_nonce, 0, ISAKMP_NONCE_LENGTH);
+	memset(ctx->r_nonce, 0, ISAKMP_NONCE_LENGTH);
 }
 
