@@ -7,10 +7,13 @@
 # 
 # $Id$
 
-all: isakmp-pkt.o
+all: isakmp-pkt.o math_group.o dh.o
 
 isakmp-pkt.o: isakmp-pkt.c isakmp-pkt.h isakmp.h
-	$(CC) $(CFLAGS) $(CSTD) -c -o $@ $<
+	$(CC) $(CFLAGS) $(CSTD) $(COPTS) -c -o $@ $<
+
+%.o: %.c %.h
+	$(CC) $(CFLAGS) $(CSTD) $(COPTS) -c -o $@ $<
 
 clean:
 	rm -rf *.o *.core

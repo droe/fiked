@@ -13,7 +13,7 @@
 #define IKE_H
 
 #include "peer_ctx.h"
-#include "isakmp/isakmp-pkt.h"
+#include "vpnc/isakmp-pkt.h"
 
 #define IKE_PORT	500
 

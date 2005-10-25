@@ -6,8 +6,8 @@
  * distribution in source or binary form, modified or unmodified, is
  * strictly prohibited.
  * 
- * $VPNC: isakmp.h 61 2005-09-20 11:30:30Z massar $
  * $Id$
+ * $VPNC: isakmp.h 61 2005-09-20 11:30:30Z massar $
  */
 
 /* ISAKMP constants.

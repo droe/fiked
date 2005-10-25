@@ -11,6 +11,8 @@
 
 #include "ike.h"
 #include "datagram.h"
+#include "vpnc/math_group.h"
+#include "vpnc/dh.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -184,8 +186,16 @@ void ike_process_aggressive_respond(int s, peer_ctx *ctx, struct isakmp_packet *
 	struct isakmp_payload *p = r->payload;
 	sa_populate_from(ctx, p, sa);
 
-	/* XXX: payload: ke */
-	p->next = NULL /* XXX: new_isakmp_payload() */;
+	/* payload: ke */
+	struct group *dh_grp;
+	unsigned char *dh_public;
+	dh_grp = group_get(OAKLEY_GRP_2);
+	dh_public = malloc(dh_getlen(dh_grp));
+	dh_create_exchange(dh_grp, dh_public);
+	p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_KE,
+		dh_public, dh_getlen(dh_grp));
+
+	/* XXX: store dh params away for later use */
 
 	/* XXX: payload: nonce_r */
 	/* XXX: payload: id_r */
@@ -225,7 +235,7 @@ void ike_process_aggressive(int s, peer_ctx *ctx, struct isakmp_packet *ikp)
 		/* XXX: more states */
 
 		default:
-			printf("[%s:%d]: aggressive mode packet in illegal state, reset state\n",
+			printf("[%s:%d]: aggressive mode packet in unhandled state, reset state\n",
 				inet_ntoa(ctx->peer_addr.sin_addr),
 				ntohs(ctx->peer_addr.sin_port));
 			ctx->state = STATE_NEW; /* does this make sense? */

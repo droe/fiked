@@ -12,8 +12,9 @@
 #include "datagram.h"
 #include "peer_ctx.h"
 #include "ike.h"
-#include "isakmp/isakmp-pkt.h"
-#include "isakmp/isakmp.h"
+#include "vpnc/isakmp-pkt.h"
+#include "vpnc/isakmp.h"
+#include "vpnc/math_group.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -30,6 +31,7 @@
 int main(int argc, char *argv[])
 {
 	srandomdev();
+	group_init();
 
 	/* XXX: getopt */
 
