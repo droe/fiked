@@ -13,16 +13,15 @@
 
 // Overview
 
-This is a proof of concept implementation of MITM on XAUTH as used
-and advertised by Cisco in their VPN Concentrator 3000 product line.
+This is a proof of concept implementation of MITM on PSK+XAUTH [1]
+as used by Cisco in their VPN Concentrator 3000 product line.
 
 This implementation is very limited in scope, it only works in very
 specific environments.  The only supported type of MITM is IKE in
 Aggressive Mode using PreShared Keys (PSK) and XAUTH.  The only
 supported algorithm suite is 3DES-CBC, MD5, DH group 2.  It is not
 supposed to be a comprehensive MITM implementation.  The only aim
-is to demonstrate that using PSK+XAUTH in aggressive mode as
-advertised by Cisco is a bad idea security-wise.
+is to demonstrate that using PSK+XAUTH is a bad idea security-wise.
 
 Actually, xauth-mitm is a misnomer, as it does not implement a full
 MITM attack, it just impersonates a VPN gateway to grab XAUTH user
@@ -48,9 +47,10 @@ support requests of this kind.
 
 // Further Reading
 
-http://ipsec-wit.antd.nist.gov/newipsecdoc/pluto.html
-http://www.faqs.org/rfcs/rfc2407.html
-http://www.faqs.org/rfcs/rfc2408.html
-http://www.faqs.org/rfcs/rfc2409.html
+[1] http://www.cisco.com/warp/public/707/cisco-sn-20040415-grppass.shtml
+[2] http://ipsec-wit.antd.nist.gov/newipsecdoc/pluto.html
+[3] http://www.faqs.org/rfcs/rfc2407.html
+[4] http://www.faqs.org/rfcs/rfc2408.html
+[5] http://www.faqs.org/rfcs/rfc2409.html
 
 
