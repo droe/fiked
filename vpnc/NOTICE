@@ -1,0 +1,10 @@
+The source code in this directory was taken from VPNC SVN.
+
+VPNC is a VPN client compatible with Cisco's EasyVPN equipment.
+It supports IPSec (ESP) with Mode Configuration and Xauth.
+Supports only shared-secret IPSec authentication with Xauth,
+AES, 3DES, 1DES, MD5, SHA1, DH1/2/5 and IP tunneling.
+
+WWW: http://www.unix-ag.uni-kl.de/~massar/vpnc/
+SVN: http://svn.unix-ag.uni-kl.de/vpnc/
+Author:  Maurice Massar <vpnc@unix-ag.uni-kl.de>
