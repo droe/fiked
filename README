@@ -45,6 +45,12 @@ support requests of this kind.
 
 
 
+// Requirements
+
+ * libgcrypt from http://www.gnupg.org/
+
+
+
 // Further Reading
 
 [1] http://www.cisco.com/warp/public/707/cisco-sn-20040415-grppass.shtml
