@@ -27,8 +27,8 @@ typedef struct _peer_ctx {
 
 	enum {
 		STATE_NEW,
-		STATE_PHASE1_RESPONDED,
-		STATE_PHASE1_COMPLETE,
+		STATE_PHASE1,
+/*		STATE_PHASE2_INIT,*/
 	} state;
 
 	/* phase 1 crypto stuff */

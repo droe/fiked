@@ -134,7 +134,13 @@ struct isakmp_packet {
 	uint8_t exchange_type;
 	uint8_t flags;
 	uint32_t message_id;
-	struct isakmp_payload *payload;
+	union {
+		struct isakmp_payload *payload;
+		struct {
+			uint8_t *data;
+			uint16_t length;
+		} enc;
+	} u;
 };
 
 extern void *xallocc(size_t x);

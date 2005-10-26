@@ -264,16 +264,16 @@ void flatten_isakmp_packet(struct isakmp_packet *p, uint8_t ** result, size_t * 
 	init_flow(&f);
 	flow_x(&f, p->i_cookie, ISAKMP_COOKIE_LENGTH);
 	flow_x(&f, p->r_cookie, ISAKMP_COOKIE_LENGTH);
-	if (p->payload == NULL)
+	if (p->u.payload == NULL)
 		flow_1(&f, 0);
 	else
-		flow_1(&f, p->payload->type);
+		flow_1(&f, p->u.payload->type);
 	flow_1(&f, p->isakmp_version);
 	flow_1(&f, p->exchange_type);
 	flow_1(&f, p->flags);
 	flow_4(&f, p->message_id);
 	lpos = flow_reserve(&f, 4);
-	flow_payload(&f, p->payload);
+	flow_payload(&f, p->u.payload);
 	if (p->flags & ISAKMP_FLAG_E) {
 		assert(blksz != 0);
 		sz = (f.end - f.base) - ISAKMP_PAYLOAD_O;
@@ -427,7 +427,7 @@ void free_isakmp_packet(struct isakmp_packet *p)
 {
 	if (p == NULL)
 		return;
-	free_isakmp_payload(p->payload);
+	free_isakmp_payload(p->u.payload);
 	free(p);
 }
 
@@ -792,9 +792,15 @@ struct isakmp_packet *parse_isakmp_packet(const uint8_t * data, size_t data_len,
 		reason = ISAKMP_N_UNEQUAL_PAYLOAD_LENGTHS;
 		goto error;
 	}
-	data_len = isakmp_data_len; /* ignore padding */
+	data_len -= o_data_len - isakmp_data_len; /* ignore padding */
 
-	r->payload = parse_isakmp_payload(payload, &data, &data_len, &reason);
+	if(r->flags & ISAKMP_FLAG_E) {
+		r->u.enc.data = malloc(data_len); /* memory leak */
+		memcpy(r->u.enc.data, data, data_len);
+		r->u.enc.length = data_len;
+	} else
+		r->u.payload = parse_isakmp_payload(payload, &data, &data_len, &reason);
+
 	if (reason != 0)
 		goto error;
 

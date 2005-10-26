@@ -127,27 +127,24 @@ void sa_populate_from(peer_ctx* ctx, struct isakmp_payload *response, struct isa
 /*
  * Process an IKE Aggressive Mode packet in STATE_NEW.
  */
-void ike_process_aggressive_respond(peer_ctx *ctx, struct isakmp_packet *ikp)
+void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
 	/* get the payloads */
 	struct isakmp_payload *sa = NULL;
 	struct isakmp_payload *ke = NULL;
 	struct isakmp_payload *nonce = NULL;
 	struct isakmp_payload *id = NULL;
-	for(struct isakmp_payload *p = ikp->payload; p; p = p->next) {
+	for(struct isakmp_payload *p = ikp->u.payload; p; p = p->next) {
 	switch(p->type) {
 		case ISAKMP_PAYLOAD_SA:
-			/*fprintf(stderr, "ISAKMP_PAYLOAD_SA\n");*/
 			sa = p;
 			break;
 
 		case ISAKMP_PAYLOAD_KE:
-			/*fprintf(stderr, "ISAKMP_PAYLOAD_KE\n");*/
 			ke = p;
 			break;
 
 		case ISAKMP_PAYLOAD_NONCE:
-			/*fprintf(stderr, "ISAKMP_PAYLOAD_NONCE\n");*/
 			if(p->u.nonce.length != ISAKMP_NONCE_LENGTH) {
 				printf("[%s:%d]: nonce length mismatch (%d != %d)\n",
 					inet_ntoa(ctx->peer_addr.sin_addr),
@@ -159,12 +156,10 @@ void ike_process_aggressive_respond(peer_ctx *ctx, struct isakmp_packet *ikp)
 			break;
 
 		case ISAKMP_PAYLOAD_ID:
-			/*fprintf(stderr, "ISAKMP_PAYLOAD_ID\n");*/
 			id = p;
 			break;
 
 		case ISAKMP_PAYLOAD_VID:
-			/*fprintf(stderr, "ISAKMP_PAYLOAD_VID\n");*/
 			/* silently ignore for now */
 			break;
 
@@ -234,9 +229,9 @@ void ike_process_aggressive_respond(peer_ctx *ctx, struct isakmp_packet *ikp)
 	r->message_id = ikp->message_id;
 
 	/* payload: sa */
-	r->payload = new_isakmp_payload(ISAKMP_PAYLOAD_SA);
-	sa_populate_from(ctx, r->payload, sa);
-	struct isakmp_payload *p = r->payload;
+	r->u.payload = new_isakmp_payload(ISAKMP_PAYLOAD_SA);
+	sa_populate_from(ctx, r->u.payload, sa);
+	struct isakmp_payload *p = r->u.payload;
 
 	/* payload: ke */
 	p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_KE,
@@ -325,42 +320,7 @@ void ike_process_aggressive_respond(peer_ctx *ctx, struct isakmp_packet *ikp)
 	dgm->sockfd = ctx->cfg->sockfd;
 	send_datagram(dgm);
 
-	ctx->state = STATE_PHASE1_RESPONDED;
-	fprintf(stderr, "STATE_PHASE1_RESPONDED\n");
-}
-
-/*
- * Process an IKE Aggressive Mode packet.
- */
-void ike_process_aggressive(peer_ctx *ctx, struct isakmp_packet *ikp)
-{
-	/*fprintf(stderr, "ISAKMP_EXCHANGE_AGGRESSIVE\n");*/
-
-	/* need some mechanism to clean out old states after some time */
-	/* maybe: if r_cookie == 0, reset to STATE_NEW */
-
-	switch(ctx->state) {
-		case STATE_NEW:
-			printf("[%s:%d]: IKE aggressive mode session initiated\n",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port));
-			ike_process_aggressive_respond(ctx, ikp);
-			break;
-
-		/* XXX: case STATE_PHASE1_RESPONDED:
-			ike_process_aggressive_phase1_complete(s, ctx, ikp);
-			break; */
-
-		/* XXX: STATE_PHASE1_COMPLETE */
-		/* XXX: more states */
-
-		default:
-			printf("[%s:%d]: aggressive mode packet in unhandled state, reset state\n",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port));
-			reset_peer_ctx(ctx);
-			break;
-	}
+	ctx->state = STATE_PHASE1;
 }
 
 /*
@@ -370,7 +330,7 @@ void ike_process_informational(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
 	/*fprintf(stderr, "ISAKMP_EXCHANGE_INFORMATIONAL\n");*/
 
-	for(struct isakmp_payload *p = ikp->payload; p; p = p->next) {
+	for(struct isakmp_payload *p = ikp->u.payload; p; p = p->next) {
 	switch(p->type) {
 		case ISAKMP_PAYLOAD_N:
 			/*fprintf(stderr, "ISAKMP_PAYLOAD_N\n");*/
@@ -397,6 +357,69 @@ void ike_process_informational(peer_ctx *ctx, struct isakmp_packet *ikp)
 }
 
 /*
+ * Process an IKE packet in STATE_NEW.
+ */
+void ike_process_new(peer_ctx *ctx, struct isakmp_packet *ikp)
+{
+	if(ikp->flags & ISAKMP_FLAG_E) {
+		printf("[%s:%d]: encrypted packet in STATE_NEW, ignored\n",
+			inet_ntoa(ctx->peer_addr.sin_addr),
+			ntohs(ctx->peer_addr.sin_port));
+		return;
+	}
+
+	switch(ikp->exchange_type) {
+		case ISAKMP_EXCHANGE_AGGRESSIVE:
+			printf("[%s:%d]: IKE session initiated [aggressive mode]\n",
+				inet_ntoa(ctx->peer_addr.sin_addr),
+				ntohs(ctx->peer_addr.sin_port));
+			ike_do_phase1(ctx, ikp);
+			break;
+
+		case ISAKMP_EXCHANGE_INFORMATIONAL:
+			ike_process_informational(ctx, ikp);
+			break;
+
+		default:
+			printf("[%s:%d]: unhandled exchange type 0x%02x in STATE_NEW, ignored\n",
+				inet_ntoa(ctx->peer_addr.sin_addr),
+				ntohs(ctx->peer_addr.sin_port),
+				ikp->exchange_type);
+			break;
+	}
+}
+
+/*
+ * Process an IKE packet in STATE_PHASE1.
+ */
+void ike_process_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
+{
+	if(!(ikp->flags & ISAKMP_FLAG_E)) {
+		printf("[%s:%d]: unencrypted packet in STATE_PHASE1, ignored\n",
+			inet_ntoa(ctx->peer_addr.sin_addr),
+			ntohs(ctx->peer_addr.sin_port));
+		return;
+	}
+
+	switch(ikp->exchange_type) {
+		case ISAKMP_EXCHANGE_AGGRESSIVE:
+			// XXX: ike_do_phase1_end(ctx, ikp);
+			break;
+
+		case ISAKMP_EXCHANGE_INFORMATIONAL:
+			ike_process_informational(ctx, ikp);
+			break;
+
+		default:
+			printf("[%s:%d]: unhandled exchange type 0x%02x in STATE_PHASE1, ignored\n",
+				inet_ntoa(ctx->peer_addr.sin_addr),
+				ntohs(ctx->peer_addr.sin_port),
+				ikp->exchange_type);
+			break;
+	}
+}
+
+/*
  * Process an incoming IKE/ISAKMP packet.
  */
 void ike_process_isakmp(peer_ctx *ctx, struct isakmp_packet *ikp)
@@ -408,23 +431,31 @@ void ike_process_isakmp(peer_ctx *ctx, struct isakmp_packet *ikp)
 		ikp->isakmp_version,
 		ikp->exchange_type,
 		ikp->flags,
-		ikp->payload->type);*/
+		ikp->u.payload->type);*/
 
-	switch(ikp->exchange_type) {
-		case ISAKMP_EXCHANGE_AGGRESSIVE:
-			ike_process_aggressive(ctx, ikp);
+	/* need some mechanism to clean out old states after some time */
+	/* maybe: if r_cookie == 0, reset to STATE_NEW */
+
+	switch(ctx->state) {
+		case STATE_NEW:
+			ike_process_new(ctx, ikp);
 			break;
 
-		case ISAKMP_EXCHANGE_INFORMATIONAL:
-			ike_process_informational(ctx, ikp);
+		case STATE_PHASE1:
+			ike_process_phase1(ctx, ikp);
 			break;
+
+		/* XXX: STATE_PHASE2_... */
+		/* XXX: more states */
 
 		default:
-			printf("[%s:%d]: unhandled exchange type 0x%02x\n",
+			printf("[%s:%d]: unhandled state, reset state\n",
 				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port),
-				ikp->exchange_type);
+				ntohs(ctx->peer_addr.sin_port));
+			reset_peer_ctx(ctx);
+			ike_process_new(ctx, ikp);
 			break;
 	}
+
 }
 

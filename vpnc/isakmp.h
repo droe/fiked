@@ -335,10 +335,12 @@ enum ipsec_auth_enum {
 #define ISAKMP_NONCE_LENGTH		20
 #define ISAKMP_VERSION			0x10
 /* offsets */
-#define ISAKMP_EXCHANGE_TYPE_O		18
 #define ISAKMP_I_COOKIE_O		0
 #define ISAKMP_R_COOKIE_O		8
+#define ISAKMP_EXCHANGE_TYPE_O		18
+#define ISAKMP_FLAGS_O			19
 #define ISAKMP_MESSAGE_ID_O		20
+#define ISAKMP_LENGTH_O			24
 #define ISAKMP_PAYLOAD_O		28
 
 /* Support for draft-ietf-ipsec-isakmp-xauth-06.txt (yuk).  */
