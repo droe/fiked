@@ -52,6 +52,9 @@ typedef struct _peer_ctx {
 
 	/* phase 1 keys */
         uint8_t *skeyid;
+        uint8_t *skeyid_d;
+        uint8_t *skeyid_a;
+        uint8_t *skeyid_e;
 } peer_ctx;
 
 /*

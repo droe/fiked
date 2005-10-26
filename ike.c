@@ -258,18 +258,55 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	 * SKEYID_d = hmac(SKEYID, g^xy | Cookie_I | Cookie_R | 0)
 	 */
 
-	/* generate skeyid */
-	gcry_md_hd_t skeyid_ctx;
-	gcry_md_open(&skeyid_ctx, ctx->md_algo, GCRY_MD_FLAG_HMAC);
-	gcry_md_setkey(skeyid_ctx, ctx->cfg->psk, strlen(ctx->cfg->psk));
-	gcry_md_write(skeyid_ctx, ctx->i_nonce, ctx->i_nonce_len);
-	gcry_md_write(skeyid_ctx, ctx->r_nonce, ctx->r_nonce_len);
-	gcry_md_final(skeyid_ctx);
-	ctx->skeyid = malloc(ctx->md_len);
-	memcpy(ctx->skeyid, gcry_md_read(skeyid_ctx, 0), ctx->md_len);
-	gcry_md_close(skeyid_ctx);
+	gcry_md_hd_t md_ctx;
 
-	/* XXX: skeyid_e skeyid_a skeyid_d */
+	/* generate skeyid */
+	gcry_md_open(&md_ctx, ctx->md_algo, GCRY_MD_FLAG_HMAC);
+	gcry_md_setkey(md_ctx, ctx->cfg->psk, strlen(ctx->cfg->psk));
+	gcry_md_write(md_ctx, ctx->i_nonce, ctx->i_nonce_len);
+	gcry_md_write(md_ctx, ctx->r_nonce, ctx->r_nonce_len);
+	gcry_md_final(md_ctx);
+	ctx->skeyid = malloc(ctx->md_len);
+	memcpy(ctx->skeyid, gcry_md_read(md_ctx, 0), ctx->md_len);
+	gcry_md_close(md_ctx);
+
+	/* skeyid_e */
+	gcry_md_open(&md_ctx, ctx->md_algo, GCRY_MD_FLAG_HMAC);
+	gcry_md_setkey(md_ctx, ctx->skeyid, ctx->md_len);
+	gcry_md_write(md_ctx, ctx->dh_secret, dh_getlen(ctx->dh_group));
+	gcry_md_write(md_ctx, ctx->i_cookie, ISAKMP_COOKIE_LENGTH);
+	gcry_md_write(md_ctx, ctx->r_cookie, ISAKMP_COOKIE_LENGTH);
+	gcry_md_putc(md_ctx, 0);
+	gcry_md_final(md_ctx);
+	ctx->skeyid_d = malloc(ctx->md_len);
+	memcpy(ctx->skeyid_d, gcry_md_read(md_ctx, 0), ctx->md_len);
+	gcry_md_close(md_ctx);
+
+	/* skeyid_a */
+	gcry_md_open(&md_ctx, ctx->md_algo, GCRY_MD_FLAG_HMAC);
+	gcry_md_setkey(md_ctx, ctx->skeyid, ctx->md_len);
+	gcry_md_write(md_ctx, ctx->skeyid_d, ctx->md_len);
+	gcry_md_write(md_ctx, ctx->dh_secret, dh_getlen(ctx->dh_group));
+	gcry_md_write(md_ctx, ctx->i_cookie, ISAKMP_COOKIE_LENGTH);
+	gcry_md_write(md_ctx, ctx->r_cookie, ISAKMP_COOKIE_LENGTH);
+	gcry_md_putc(md_ctx, 1);
+	gcry_md_final(md_ctx);
+	ctx->skeyid_a = malloc(ctx->md_len);
+	memcpy(ctx->skeyid_a, gcry_md_read(md_ctx, 0), ctx->md_len);
+	gcry_md_close(md_ctx);
+
+	/* skeyid_d */
+	gcry_md_open(&md_ctx, ctx->md_algo, GCRY_MD_FLAG_HMAC);
+	gcry_md_setkey(md_ctx, ctx->skeyid, ctx->md_len);
+	gcry_md_write(md_ctx, ctx->skeyid_a, ctx->md_len);
+	gcry_md_write(md_ctx, ctx->dh_secret, dh_getlen(ctx->dh_group));
+	gcry_md_write(md_ctx, ctx->i_cookie, ISAKMP_COOKIE_LENGTH);
+	gcry_md_write(md_ctx, ctx->r_cookie, ISAKMP_COOKIE_LENGTH);
+	gcry_md_putc(md_ctx, 2);
+	gcry_md_final(md_ctx);
+	ctx->skeyid_e = xallocc(ctx->md_len);
+	memcpy(ctx->skeyid_e, gcry_md_read(md_ctx, 0), ctx->md_len);
+	gcry_md_close(md_ctx);
 
 	/*
 	 * HASH_I = prf(SKEYID, g^x | g^y | Cookie_I | Cookie_R | SA_I | ID_I )
