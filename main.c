@@ -30,7 +30,6 @@
  */
 int main(int argc, char *argv[])
 {
-	srandomdev();
 	group_init();
 
 	/* XXX: getopt */
@@ -65,6 +64,7 @@ int main(int argc, char *argv[])
 		free_datagram(dgm);
 	}
 
+	destroy_peer_ctx();
 	printf("Bye.\n");
 	return 0;
 }
