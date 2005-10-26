@@ -324,23 +324,41 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 }
 
 /*
+ * Decrypts the payload during phase 1.
+ */
+void ike_decrypt_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
+{
+	/* XXX */
+
+//	ikp->u.payload = parse_isakmp_payload(payload, &data, &data_len, &reason);
+}
+
+/*
+ * Process an IKE Aggressive Mode packet in STATE_PHASE1.
+ * Brings us into STATE_PHASE2. (probably)
+ */
+void ike_do_phase1_end(peer_ctx *ctx, struct isakmp_packet *ikp)
+{
+	/* XXX */
+
+	/*ctx->state = STATE_PHASE1;*/
+}
+
+/*
  * Process an IKE Informational packet.
  */
 void ike_process_informational(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
-	/*fprintf(stderr, "ISAKMP_EXCHANGE_INFORMATIONAL\n");*/
-
 	for(struct isakmp_payload *p = ikp->u.payload; p; p = p->next) {
 	switch(p->type) {
 		case ISAKMP_PAYLOAD_N:
-			/*fprintf(stderr, "ISAKMP_PAYLOAD_N\n");*/
 			if(p->u.n.type == ISAKMP_N_INVALID_PAYLOAD_TYPE) {
 				printf("[%s:%d]: error from peer: invalid payload type, reset state\n",
 					inet_ntoa(ctx->peer_addr.sin_addr),
 					ntohs(ctx->peer_addr.sin_port));
 					reset_peer_ctx(ctx);
 			} else {
-				printf("[%s:%d]: unhandled notification type 0x%02x in informational, ignored\n",
+				printf("[%s:%d]: unhandled informational notification type 0x%02x, ignored\n",
 					inet_ntoa(ctx->peer_addr.sin_addr),
 					ntohs(ctx->peer_addr.sin_port),
 					p->u.n.type);
@@ -348,7 +366,7 @@ void ike_process_informational(peer_ctx *ctx, struct isakmp_packet *ikp)
 			break;
 
 		default:
-			printf("[%s:%d]: unhandled payload type 0x%02x in informational, ignored\n",
+			printf("[%s:%d]: unhandled informational payload type 0x%02x, ignored\n",
 				inet_ntoa(ctx->peer_addr.sin_addr),
 				ntohs(ctx->peer_addr.sin_port),
 				p->type);
@@ -403,7 +421,8 @@ void ike_process_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 	switch(ikp->exchange_type) {
 		case ISAKMP_EXCHANGE_AGGRESSIVE:
-			// XXX: ike_do_phase1_end(ctx, ikp);
+			ike_decrypt_phase1(ctx, ikp);
+			ike_do_phase1_end(ctx, ikp);
 			break;
 
 		case ISAKMP_EXCHANGE_INFORMATIONAL:
