@@ -24,12 +24,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <gcrypt.h>
 
 /*
  * Option processing and main loop.
  */
 int main(int argc, char *argv[])
 {
+	gcry_check_version("1.1.90");
+	gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
 	group_init();
 
 	/* XXX: getopt */
@@ -38,7 +41,10 @@ int main(int argc, char *argv[])
 	/*printf("Copyright (C) 2005, Daniel Roethlisberger <daniel@roe.ch>\n");*/
 
 	config *cfg = new_config();
-	cfg->gateway = "1.2.3.4";
+	cfg->gateway = "111.11.111.1";
+	/* cfg->id = "xxxxxxxx"; */
+//	cfg->psk = "xxxxxxxxxx";
+	cfg->psk = "xxxxxxxx";
 
 	printf("Impersonating VPN gateway at %s\n", cfg->gateway);
 

@@ -15,6 +15,7 @@
 typedef struct _config {
 	int sockfd;	/* UDP socket we listen on */
 	char *gateway;	/* IP address of VPN gateway to impersonate */
+	char *psk;	/* pre-shared key */
 } config;
 
 config * new_config();

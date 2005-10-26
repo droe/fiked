@@ -30,16 +30,27 @@ typedef struct _peer_ctx {
 		STATE_PHASE1_RESPONDED,
 		STATE_PHASE1_COMPLETE,
 	} state;
+
+	/* phase 1 crypto stuff */
+	int md_algo;
+	size_t md_len;
 	struct group *dh_group;
 	uint8_t *dh_i_public;
 	uint8_t *dh_r_public;
 	uint8_t *dh_secret;
+
+	/* phase 1 payloads */
 	uint8_t i_cookie[ISAKMP_COOKIE_LENGTH];
 	uint8_t r_cookie[ISAKMP_COOKIE_LENGTH];
 	uint8_t *i_sa,    *i_id,    *r_id;
 	size_t   i_sa_len, i_id_len, r_id_len;
 	uint8_t i_nonce[ISAKMP_NONCE_LENGTH];
 	uint8_t r_nonce[ISAKMP_NONCE_LENGTH];
+        uint8_t *i_hash;
+        uint8_t *r_hash;
+
+	/* phase 1 keys */
+        uint8_t *skeyid;
 } peer_ctx;
 
 /*
@@ -48,8 +59,8 @@ typedef struct _peer_ctx {
         uint8_t *initial_iv;
         uint8_t *skeyid_a;
         uint8_t *skeyid_d;
-        int auth_algo, cry_algo, md_algo;
-        size_t ivlen, md_len;
+        int auth_algo, cry_algo;
+        size_t ivlen;
         uint8_t current_iv_msgid[4];
         uint8_t *current_iv;
         uint8_t our_address[4], our_netmask[4];

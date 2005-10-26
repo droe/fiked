@@ -24,6 +24,13 @@
 #include <gcrypt.h>
 
 /*
+ * NOTICE: This code is not suitable for implementing a genuine IKE responder!
+ * It's very likely to be any or all of: insecure, inefficient, broken,
+ * incompatible.  If you want real IKE / IPSec source code, look at the
+ * source of eg. KAME/racoon.
+ */
+
+/*
  * Is this a supported SA transform?
  * Currently selects 3DES-CBC, MD5, group2.
  */
@@ -178,22 +185,44 @@ void ike_process_aggressive_respond(peer_ctx *ctx, struct isakmp_packet *ikp)
 		return;
 	}
 
-	/* grab the stuff we need */
+	/* grab i_cookie */
 	memcpy(ctx->i_cookie, ikp->i_cookie, ISAKMP_COOKIE_LENGTH);
+
+	/* grab i_sa */
+	struct isakmp_payload *tmp = sa->next;
+	sa->next = NULL;
 	flatten_isakmp_payload(sa, &ctx->i_sa, &ctx->i_sa_len);
+	sa->next = tmp;
+
+	/* grab dh_i_public */
 	ctx->dh_i_public = malloc(ke->u.ke.length);
 	memcpy(ctx->dh_i_public, ke->u.ke.data, ke->u.ke.length);
+
+	/* grab i_nonce */
 	memcpy(ctx->i_nonce, nonce->u.nonce.data, ISAKMP_NONCE_LENGTH);
+
+	/* grab i_id */
+	tmp = id->next;
+	id->next = NULL;
 	flatten_isakmp_payload(id, &ctx->i_id, &ctx->i_id_len);
+	id->next = tmp;
 
 	/* generate r_cookie */
 	gcry_create_nonce(ctx->r_cookie, ISAKMP_COOKIE_LENGTH);
 
-	/* complete dh exchange */
+	/* generate r_nonce */
+	gcry_create_nonce(ctx->r_nonce, sizeof(ctx->r_nonce));
+
+	/* set up hashing */
+	ctx->md_algo = GCRY_MD_MD5; /* not sexy */
+	ctx->md_len = gcry_md_get_algo_dlen(ctx->md_algo);
+
+	/* complete dh key exchange */
 	ctx->dh_group = group_get(OAKLEY_GRP_2); /* not sexy */
 	ctx->dh_r_public = malloc(dh_getlen(ctx->dh_group));
 	dh_create_exchange(ctx->dh_group, ctx->dh_r_public);
-	/* XXX: ctx->dh_secret */
+	ctx->dh_secret = malloc(dh_getlen(ctx->dh_group));
+	dh_create_shared(ctx->dh_group, ctx->dh_secret, ctx->dh_i_public);
 
 	/* header */
 	struct isakmp_packet *r = new_isakmp_packet();
@@ -215,7 +244,6 @@ void ike_process_aggressive_respond(peer_ctx *ctx, struct isakmp_packet *ikp)
 	p = p->next;
 
 	/* payload: nonce_r */
-	gcry_create_nonce(ctx->r_nonce, sizeof(ctx->r_nonce));
 	p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_NONCE,
 		ctx->r_nonce, sizeof(ctx->r_nonce));
 	p = p->next;
@@ -231,53 +259,65 @@ void ike_process_aggressive_respond(peer_ctx *ctx, struct isakmp_packet *ikp)
 	*((in_addr_t*)p->u.id.data) = inet_addr(ctx->cfg->gateway);
 	flatten_isakmp_payload(p, &ctx->r_id, &ctx->r_id_len);
 
-	/* XXX: payload: hash_r */
-
-/*
-
-	TODO:	1) add all the cruft to ctx
-		2) write calc_dh(), calc_skeyid(), calc_hash()
-		3) add hash_r payload
-
-*/
-
 	/*
-	 * phase 1 secret key generation:
 	 * SKEYID = hmac(pre-shared-key, Nonce_I | Nonce_R)
 	 * SKEYID_e = hmac(SKEYID, SKEYID_a | g^xy | Cookie_I | Cookie_R | 2)
 	 * SKEYID_a = hmac(SKEYID, SKEYID_d | g^xy | Cookie_I | Cookie_R | 1)
 	 * SKEYID_d = hmac(SKEYID, g^xy | Cookie_I | Cookie_R | 0)
 	 */
 
+	/* generate skeyid */
+	gcry_md_hd_t skeyid_ctx;
+	gcry_md_open(&skeyid_ctx, ctx->md_algo, GCRY_MD_FLAG_HMAC);
+	gcry_md_setkey(skeyid_ctx, ctx->cfg->psk, strlen(ctx->cfg->psk));
+	gcry_md_write(skeyid_ctx, ctx->i_nonce, sizeof(ctx->i_nonce));
+	gcry_md_write(skeyid_ctx, ctx->r_nonce, sizeof(ctx->r_nonce));
+	gcry_md_final(skeyid_ctx);
+	ctx->skeyid = malloc(ctx->md_len);
+	memcpy(ctx->skeyid, gcry_md_read(skeyid_ctx, 0), ctx->md_len);
+	gcry_md_close(skeyid_ctx);
+
+	/* XXX: skeyid_e skeyid_a skeyid_d */
+
 	/*
 	 * HASH_I = prf(SKEYID, g^x | g^y | Cookie_I | Cookie_R | SA_I | ID_I )
 	 * HASH_R = prf(SKEYID, g^y | g^x | Cookie_R | Cookie_I | SA_I | ID_R )
 	 */
 
-/*
-			gcry_md_open(&skeyid_ctx, s->md_algo, GCRY_MD_FLAG_HMAC);
-			gcry_md_setkey(skeyid_ctx, shared_key, strlen(shared_key));
-			gcry_md_write(skeyid_ctx, i_nonce, sizeof(i_nonce));
-			gcry_md_write(skeyid_ctx, nonce->u.nonce.data, nonce->u.nonce.length);
-			gcry_md_final(skeyid_ctx);
-			skeyid = gcry_md_read(skeyid_ctx, 0);
-			hex_dump("skeyid", skeyid, s->md_len);
-*/
-/*
-			gcry_md_hd_t hm;
-			gcry_md_open(&hm, s->md_algo, GCRY_MD_FLAG_HMAC);
-			gcry_md_setkey(hm, skeyid, s->md_len);
-			gcry_md_write(hm, dh_public, dh_getlen(dh_grp));
-			gcry_md_write(hm, ke->u.ke.data, ke->u.ke.length);
-			gcry_md_write(hm, s->i_cookie, ISAKMP_COOKIE_LENGTH);
-			gcry_md_write(hm, s->r_cookie, ISAKMP_COOKIE_LENGTH);
-			gcry_md_write(hm, sa_f + 4, sa_size - 4);
-			gcry_md_write(hm, idi_f + 4, idi_size - 4);
-			gcry_md_final(hm);
-			returned_hash = xallocc(s->md_len);
-			memcpy(returned_hash, gcry_md_read(hm, 0), s->md_len);
-			gcry_md_close(hm);
-*/
+	/* generate i_hash */
+	gcry_md_hd_t i_hash_ctx;
+	gcry_md_open(&i_hash_ctx, ctx->md_algo, GCRY_MD_FLAG_HMAC);
+	gcry_md_setkey(i_hash_ctx, ctx->skeyid, ctx->md_len);
+	gcry_md_write(i_hash_ctx, ctx->dh_i_public, dh_getlen(ctx->dh_group));
+	gcry_md_write(i_hash_ctx, ctx->dh_r_public, dh_getlen(ctx->dh_group));
+	gcry_md_write(i_hash_ctx, ctx->i_cookie, ISAKMP_COOKIE_LENGTH);
+	gcry_md_write(i_hash_ctx, ctx->r_cookie, ISAKMP_COOKIE_LENGTH);
+	gcry_md_write(i_hash_ctx, ctx->i_sa + 4, ctx->i_sa_len - 4);
+	gcry_md_write(i_hash_ctx, ctx->i_id + 4, ctx->i_id_len - 4);
+	gcry_md_final(i_hash_ctx);
+	ctx->i_hash = malloc(ctx->md_len);
+	memcpy(ctx->i_hash, gcry_md_read(i_hash_ctx, 0), ctx->md_len);
+	gcry_md_close(i_hash_ctx);
+
+	/* generate r_hash */
+	gcry_md_hd_t r_hash_ctx;
+	gcry_md_open(&r_hash_ctx, ctx->md_algo, GCRY_MD_FLAG_HMAC);
+	gcry_md_setkey(r_hash_ctx, ctx->skeyid, ctx->md_len);
+	gcry_md_write(r_hash_ctx, ctx->dh_r_public, dh_getlen(ctx->dh_group));
+	gcry_md_write(r_hash_ctx, ctx->dh_i_public, dh_getlen(ctx->dh_group));
+	gcry_md_write(r_hash_ctx, ctx->r_cookie, ISAKMP_COOKIE_LENGTH);
+	gcry_md_write(r_hash_ctx, ctx->i_cookie, ISAKMP_COOKIE_LENGTH);
+	gcry_md_write(r_hash_ctx, ctx->i_sa + 4, ctx->i_sa_len - 4);
+	gcry_md_write(r_hash_ctx, ctx->r_id + 4, ctx->r_id_len - 4);
+	gcry_md_final(r_hash_ctx);
+	ctx->r_hash = malloc(ctx->md_len);
+	memcpy(ctx->r_hash, gcry_md_read(r_hash_ctx, 0), ctx->md_len);
+	gcry_md_close(r_hash_ctx);
+
+	/* payload: hash_r */
+	p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_HASH,
+		ctx->r_hash, ctx->md_len);
+	p = p->next;
 
 	datagram *dgm = new_datagram(0);
 	flatten_isakmp_packet(r, &dgm->data, &dgm->len, 8);
@@ -286,6 +326,7 @@ void ike_process_aggressive_respond(peer_ctx *ctx, struct isakmp_packet *ikp)
 	send_datagram(dgm);
 
 	ctx->state = STATE_PHASE1_RESPONDED;
+	fprintf(stderr, "STATE_PHASE1_RESPONDED\n");
 }
 
 /*
@@ -295,8 +336,8 @@ void ike_process_aggressive(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
 	/*fprintf(stderr, "ISAKMP_EXCHANGE_AGGRESSIVE\n");*/
 
-	/* XXX: need some mechanism to clean out old states after some time */
-	/* XXX: maybe: if r_cookie == 0, reset to STATE_NEW */
+	/* need some mechanism to clean out old states after some time */
+	/* maybe: if r_cookie == 0, reset to STATE_NEW */
 
 	switch(ctx->state) {
 		case STATE_NEW:
