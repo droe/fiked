@@ -87,6 +87,14 @@ void free_peer_ctx(peer_ctx *ctx)
 		free(ctx->r_id);
 		ctx->r_id = NULL;
 	}
+	if(ctx->i_nonce) {
+		free(ctx->i_nonce);
+		ctx->i_nonce = NULL;
+	}
+	if(ctx->r_nonce) {
+		free(ctx->r_nonce);
+		ctx->r_nonce = NULL;
+	}
 	if(ctx->i_hash) {
 		free(ctx->i_hash);
 		ctx->i_hash = NULL;

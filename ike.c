@@ -145,14 +145,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 			break;
 
 		case ISAKMP_PAYLOAD_NONCE:
-			if(p->u.nonce.length != ISAKMP_NONCE_LENGTH) {
-				printf("[%s:%d]: nonce length mismatch (%d != %d)\n",
-					inet_ntoa(ctx->peer_addr.sin_addr),
-					ntohs(ctx->peer_addr.sin_port),
-					p->u.nonce.length, ISAKMP_NONCE_LENGTH);
-			} else {
-				nonce = p;
-			}
+			nonce = p;
 			break;
 
 		case ISAKMP_PAYLOAD_ID:
@@ -194,7 +187,9 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	memcpy(ctx->dh_i_public, ke->u.ke.data, ke->u.ke.length);
 
 	/* grab i_nonce */
-	memcpy(ctx->i_nonce, nonce->u.nonce.data, ISAKMP_NONCE_LENGTH);
+	ctx->i_nonce = malloc(nonce->u.nonce.length);
+	ctx->i_nonce_len = nonce->u.nonce.length;
+	memcpy(ctx->i_nonce, nonce->u.nonce.data, nonce->u.nonce.length);
 
 	/* grab i_id */
 	tmp = id->next;
@@ -206,7 +201,9 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	gcry_create_nonce(ctx->r_cookie, ISAKMP_COOKIE_LENGTH);
 
 	/* generate r_nonce */
-	gcry_create_nonce(ctx->r_nonce, sizeof(ctx->r_nonce));
+	ctx->r_nonce_len = ctx->i_nonce_len;
+	ctx->r_nonce = malloc(ctx->r_nonce_len);
+	gcry_create_nonce(ctx->r_nonce, ctx->r_nonce_len);
 
 	/* set up hashing */
 	ctx->md_algo = GCRY_MD_MD5; /* not sexy */
@@ -240,7 +237,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 	/* payload: nonce_r */
 	p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_NONCE,
-		ctx->r_nonce, sizeof(ctx->r_nonce));
+		ctx->r_nonce, ctx->r_nonce_len);
 	p = p->next;
 
 	/* payload: id_r */
@@ -265,8 +262,8 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	gcry_md_hd_t skeyid_ctx;
 	gcry_md_open(&skeyid_ctx, ctx->md_algo, GCRY_MD_FLAG_HMAC);
 	gcry_md_setkey(skeyid_ctx, ctx->cfg->psk, strlen(ctx->cfg->psk));
-	gcry_md_write(skeyid_ctx, ctx->i_nonce, sizeof(ctx->i_nonce));
-	gcry_md_write(skeyid_ctx, ctx->r_nonce, sizeof(ctx->r_nonce));
+	gcry_md_write(skeyid_ctx, ctx->i_nonce, ctx->i_nonce_len);
+	gcry_md_write(skeyid_ctx, ctx->r_nonce, ctx->r_nonce_len);
 	gcry_md_final(skeyid_ctx);
 	ctx->skeyid = malloc(ctx->md_len);
 	memcpy(ctx->skeyid, gcry_md_read(skeyid_ctx, 0), ctx->md_len);

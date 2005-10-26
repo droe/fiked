@@ -44,8 +44,9 @@ typedef struct _peer_ctx {
 	uint8_t r_cookie[ISAKMP_COOKIE_LENGTH];
 	uint8_t *i_sa,    *i_id,    *r_id;
 	size_t   i_sa_len, i_id_len, r_id_len;
-	uint8_t i_nonce[ISAKMP_NONCE_LENGTH];
-	uint8_t r_nonce[ISAKMP_NONCE_LENGTH];
+	uint8_t *i_nonce;
+	uint8_t *r_nonce;
+	size_t   i_nonce_len, r_nonce_len;
         uint8_t *i_hash;
         uint8_t *r_hash;
 
