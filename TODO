@@ -1,8 +1,8 @@
+ * svnadmin dump/restore cycle to remove secrets from main.c
  * complete phase 1 (decryption)
  * phase 2 exchange
- * getopt config (-g gateway -s secret)
- * svnadmin dump/restore cycle to remove secrets from main.c
  * timestamped logging facility w/syslog and file options
  * daemon mode (-d)
  * malloc() safety
  * find remaining memory leaks
+ * add config file with ipsec_id:secret pairs

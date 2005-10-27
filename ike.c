@@ -511,9 +511,11 @@ void ike_process_new(peer_ctx *ctx, struct isakmp_packet *ikp)
 void ike_process_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
 	if(!(ikp->flags & ISAKMP_FLAG_E)) {
-		printf("[%s:%d]: unencrypted packet in STATE_PHASE1, ignored\n",
+		printf("[%s:%d]: unencrypted packet in STATE_PHASE1, reset state\n",
 			inet_ntoa(ctx->peer_addr.sin_addr),
 			ntohs(ctx->peer_addr.sin_port));
+		reset_peer_ctx(ctx);
+		ike_process_new(ctx, ikp);
 		return;
 	}
 
