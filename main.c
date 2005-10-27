@@ -46,10 +46,10 @@ int main(int argc, char *argv[])
 //	cfg->psk = "xxxxxxxxxx";
 	cfg->psk = "xxxxxxxx";
 
-	printf("Impersonating VPN gateway at %s\n", cfg->gateway);
+	printf("Config: gateway=%s psk=%s\n", cfg->gateway, cfg->psk);
 
 	cfg->sockfd = open_udp_socket(IKE_PORT);
-	printf("Listening on %d/udp (fd=%d)...\n", IKE_PORT, cfg->sockfd);
+	printf("Listening on %d/udp...\n", IKE_PORT);
 
 	datagram *dgm;
 	peer_ctx *ctx;
