@@ -10,13 +10,12 @@
 CC=gcc
 CFLAGS?=-g -Wall -pedantic-errors
 LDFLAGS?=-g -Wall -pedantic-errors
+CSTD=-std=c99
 COPTS=-I/usr/local/include
 LDOPTS=-L/usr/local/lib
 LIBS=-lgcrypt
 
 PGM=xauth-mitm
-
-CSTD=-std=c99
 
 OBJS=config.o datagram.o peer_ctx.o ike.o main.o
 

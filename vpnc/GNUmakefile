@@ -7,6 +7,15 @@
 # 
 # $Id$
 
+# inherit from parent
+CC?=gcc
+CFLAGS?=-g -Wall -pedantic-errors
+LDFLAGS?=-g -Wall -pedantic-errors
+CSTD?=-std=c99
+COPTS?=-I/usr/local/include
+LDOPTS?=-L/usr/local/lib
+LIBS?=-lgcrypt
+
 all: isakmp-pkt.o math_group.o dh.o
 
 isakmp-pkt.o: isakmp-pkt.c isakmp-pkt.h isakmp.h
