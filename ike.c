@@ -25,9 +25,10 @@
 
 /*
  * NOTICE: This code is not suitable for implementing a genuine IKE responder!
- * It's very likely to be any or all of: insecure, inefficient, broken,
- * incompatible.  If you want real IKE / IPSec source code, look at the
- * source of eg. KAME/racoon.
+ *         It's very likely to be any or all of: insecure, incompatible,
+ *         inefficient, unstable, unportable, or outright broken.
+ *         If you want genuine IKE source code, look for a proper
+ *         implementation instead.
  */
 
 /* minimum */
@@ -163,7 +164,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 			break;
 
 		default:
-			printf("[%s:%d]: unhandled payload type 0x%02x in aggressive_respond, ignored\n",
+			printf("[%s:%d]: unhandled payload type 0x%02x, ignored\n",
 				inet_ntoa(ctx->peer_addr.sin_addr),
 				ntohs(ctx->peer_addr.sin_port),
 				p->type);
@@ -172,11 +173,33 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 	/* do we have all payloads? */
 	if(!(sa && ke && nonce && id)) {
-		printf("[%s:%d]: missing payload(s): sa=%p ke=%p nonce=%p id=%p in aggressive_respond, ignored\n",
+		printf("[%s:%d]: missing payload(s): sa=%p ke=%p nonce=%p id=%p, ignored\n",
 			inet_ntoa(ctx->peer_addr.sin_addr),
 			ntohs(ctx->peer_addr.sin_port),
 			(void*)sa, (void*)ke, (void*)nonce, (void*)id);
 		return;
+	}
+
+	/* heads up: the ipsec id */
+	switch(id->u.id.type) {
+		case ISAKMP_IPSEC_ID_FQDN:
+		case ISAKMP_IPSEC_ID_USER_FQDN:
+		case ISAKMP_IPSEC_ID_KEY_ID:
+			ctx->ipsec_id = malloc(id->u.id.length + 1);
+			memcpy(ctx->ipsec_id, id->u.id.data, id->u.id.length);
+			ctx->ipsec_id[id->u.id.length] = '\0';
+			printf("[%s:%d]: IPSec ID: %s\n",
+				inet_ntoa(ctx->peer_addr.sin_addr),
+				ntohs(ctx->peer_addr.sin_port),
+				ctx->ipsec_id);
+			break;
+
+		default:
+			printf("[%s:%d]: binary ID type %d, processing packet anyway\n",
+				inet_ntoa(ctx->peer_addr.sin_addr),
+				ntohs(ctx->peer_addr.sin_port),
+				id->u.id.type);
+			break;
 	}
 
 	/* grab i_cookie */
