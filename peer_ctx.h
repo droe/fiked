@@ -21,36 +21,51 @@
 #include <netinet/in.h>
 
 typedef struct _peer_ctx {
+	/* bookkeeping */
 	struct sockaddr_in peer_addr; /* primary key */
 	struct _peer_ctx *next;
+
+	/* pointer to global configuration */
 	config *cfg;
 
+	/* internal FSM states */
 	enum {
 		STATE_NEW,
 		STATE_PHASE1,
 /*		STATE_PHASE2_INIT,*/
 	} state;
 
+	/* the interesting stuff */
+	uint8_t *ipsec_id;
+	uint8_t *xauth_username;
+	uint8_t *xauth_password;
+
+	/* IKE: symmetrical crypto */
 	int algo;
 	size_t key_len;
 	size_t blk_len;
 	uint8_t *key;
 	uint8_t *iv;
 	uint8_t *iv0;
+	/* how do we handle the message id? */
 
+	/* IKE: message digest */
 	int md_algo;
 	size_t md_len;
 
+	/* IKE: Diffie-Hellman */
 	struct group *dh_group;
 	uint8_t *dh_i_public;
 	uint8_t *dh_r_public;
 	uint8_t *dh_secret;
 
+	/* IKE: intermediate key material */
 	uint8_t *skeyid;
 	uint8_t *skeyid_d;
 	uint8_t *skeyid_a;
 	uint8_t *skeyid_e;
 
+	/* IKE: phase 1 payloads */
 	uint8_t i_cookie[ISAKMP_COOKIE_LENGTH];
 	uint8_t r_cookie[ISAKMP_COOKIE_LENGTH];
 	uint8_t *i_sa,    *i_id,    *r_id;

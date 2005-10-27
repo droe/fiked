@@ -53,68 +53,43 @@ void destroy_peer_ctx()
 	head = NULL;
 }
 
+#define FREE_CTX_MEMBER(x) \
+	if(ctx->x) { \
+		free(ctx->x); \
+		ctx->x = NULL; \
+	}
 void free_peer_ctx(peer_ctx *ctx)
 {
 	if(ctx->next) {
 		free_peer_ctx(ctx->next);
 		ctx->next = NULL;
 	}
-	if(ctx->key) {
-		free(ctx->key);
-		ctx->key = NULL;
-	}
-	if(ctx->iv) {
-		free(ctx->iv);
-		ctx->iv = NULL;
-	}
-	if(ctx->dh_group) {
-		free(ctx->dh_group);
-		ctx->dh_group = NULL;
-	}
-	if(ctx->dh_i_public) {
-		free(ctx->dh_i_public);
-		ctx->dh_i_public = NULL;
-	}
-	if(ctx->dh_r_public) {
-		free(ctx->dh_r_public);
-		ctx->dh_r_public = NULL;
-	}
-	if(ctx->dh_secret) {
-		free(ctx->dh_secret);
-		ctx->dh_secret = NULL;
-	}
-	if(ctx->i_sa) {
-		free(ctx->i_sa);
-		ctx->i_sa = NULL;
-	}
-	if(ctx->i_id) {
-		free(ctx->i_id);
-		ctx->i_id = NULL;
-	}
-	if(ctx->r_id) {
-		free(ctx->r_id);
-		ctx->r_id = NULL;
-	}
-	if(ctx->i_nonce) {
-		free(ctx->i_nonce);
-		ctx->i_nonce = NULL;
-	}
-	if(ctx->r_nonce) {
-		free(ctx->r_nonce);
-		ctx->r_nonce = NULL;
-	}
-	if(ctx->i_hash) {
-		free(ctx->i_hash);
-		ctx->i_hash = NULL;
-	}
-	if(ctx->r_hash) {
-		free(ctx->r_hash);
-		ctx->r_hash = NULL;
-	}
-	if(ctx->skeyid) {
-		free(ctx->skeyid);
-		ctx->skeyid = NULL;
-	}
+
+	FREE_CTX_MEMBER(ipsec_id);
+	FREE_CTX_MEMBER(xauth_username);
+	FREE_CTX_MEMBER(xauth_password);
+
+	FREE_CTX_MEMBER(key);
+	FREE_CTX_MEMBER(iv);
+
+	FREE_CTX_MEMBER(dh_group);
+	FREE_CTX_MEMBER(dh_i_public);
+	FREE_CTX_MEMBER(dh_r_public);
+	FREE_CTX_MEMBER(dh_secret);
+
+	FREE_CTX_MEMBER(skeyid);
+	FREE_CTX_MEMBER(skeyid_e);
+	FREE_CTX_MEMBER(skeyid_a);
+	FREE_CTX_MEMBER(skeyid_d);
+
+	FREE_CTX_MEMBER(i_sa);
+	FREE_CTX_MEMBER(i_id);
+	FREE_CTX_MEMBER(r_id);
+	FREE_CTX_MEMBER(i_nonce);
+	FREE_CTX_MEMBER(r_nonce);
+	FREE_CTX_MEMBER(i_hash);
+	FREE_CTX_MEMBER(r_hash);
+
 	free(ctx);
 }
-
+#undef FREE_CTX_MEMBER
