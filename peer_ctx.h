@@ -31,15 +31,26 @@ typedef struct _peer_ctx {
 /*		STATE_PHASE2_INIT,*/
 	} state;
 
-	/* phase 1 crypto stuff */
+	int algo;
+	size_t key_len;
+	size_t blk_len;
+	uint8_t *key;
+	uint8_t *iv;
+	uint8_t *iv0;
+
 	int md_algo;
 	size_t md_len;
+
 	struct group *dh_group;
 	uint8_t *dh_i_public;
 	uint8_t *dh_r_public;
 	uint8_t *dh_secret;
 
-	/* phase 1 payloads */
+	uint8_t *skeyid;
+	uint8_t *skeyid_d;
+	uint8_t *skeyid_a;
+	uint8_t *skeyid_e;
+
 	uint8_t i_cookie[ISAKMP_COOKIE_LENGTH];
 	uint8_t r_cookie[ISAKMP_COOKIE_LENGTH];
 	uint8_t *i_sa,    *i_id,    *r_id;
@@ -47,29 +58,9 @@ typedef struct _peer_ctx {
 	uint8_t *i_nonce;
 	uint8_t *r_nonce;
 	size_t   i_nonce_len, r_nonce_len;
-        uint8_t *i_hash;
-        uint8_t *r_hash;
-
-	/* phase 1 keys */
-        uint8_t *skeyid;
-        uint8_t *skeyid_d;
-        uint8_t *skeyid_a;
-        uint8_t *skeyid_e;
+	uint8_t *i_hash;
+	uint8_t *r_hash;
 } peer_ctx;
-
-/*
-        uint8_t *key; // ike encryption key
-        size_t keylen;
-        uint8_t *initial_iv;
-        uint8_t *skeyid_a;
-        uint8_t *skeyid_d;
-        int auth_algo, cry_algo;
-        size_t ivlen;
-        uint8_t current_iv_msgid[4];
-        uint8_t *current_iv;
-        uint8_t our_address[4], our_netmask[4];
-        uint32_t tous_esp_spi, tothem_esp_spi;
-*/
 
 peer_ctx * get_peer_ctx(datagram *dgm, config *cfg);
 void reset_peer_ctx(peer_ctx *ctx);

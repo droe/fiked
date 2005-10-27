@@ -30,6 +30,12 @@
  * source of eg. KAME/racoon.
  */
 
+/* minimum */
+static inline int min(int a, int b)
+{
+	return (a < b) ? a : b;
+}
+
 /*
  * Is this a supported SA transform?
  * Currently selects 3DES-CBC, MD5, group2.
@@ -308,6 +314,40 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	memcpy(ctx->skeyid_e, gcry_md_read(md_ctx, 0), ctx->md_len);
 	gcry_md_close(md_ctx);
 
+	/* encryption key */
+	ctx->algo = GCRY_CIPHER_3DES; /* not sexy */
+	gcry_cipher_algo_info(ctx->algo, GCRYCTL_GET_BLKLEN, NULL, &(ctx->blk_len));
+	gcry_cipher_algo_info(ctx->algo, GCRYCTL_GET_KEYLEN, NULL, &(ctx->key_len));
+	ctx->key = malloc(ctx->key_len);
+	if(ctx->key_len > ctx->md_len) {
+		for(int i = 0; i * ctx->md_len < ctx->key_len; i++) {
+			gcry_md_open(&md_ctx, ctx->md_algo, GCRY_MD_FLAG_HMAC);
+			gcry_md_setkey(md_ctx, ctx->skeyid_e, ctx->md_len);
+			if(i == 0)
+				gcry_md_putc(md_ctx, 0);
+			else
+				gcry_md_write(md_ctx,
+					ctx->key + (i - 1) * ctx->md_len,
+					ctx->md_len);
+			gcry_md_final(md_ctx);
+			memcpy(ctx->key + i * ctx->md_len,
+				gcry_md_read(md_ctx, 0),
+				min(ctx->md_len, ctx->key_len - i * ctx->md_len));
+			gcry_md_close(md_ctx);
+		}
+	} else {
+		memcpy(ctx->key, ctx->skeyid_e, ctx->key_len);
+	}
+
+	/* initial phase 1 iv */
+	gcry_md_open(&md_ctx, ctx->md_algo, 0);
+	gcry_md_write(md_ctx, ctx->dh_i_public, dh_getlen(ctx->dh_group));
+	gcry_md_write(md_ctx, ctx->dh_r_public, dh_getlen(ctx->dh_group));
+	gcry_md_final(md_ctx);
+	ctx->iv = malloc(ctx->blk_len);
+	memcpy(ctx->iv, gcry_md_read(md_ctx, 0), ctx->blk_len);
+	gcry_md_close(md_ctx);
+
 	/*
 	 * HASH_I = prf(SKEYID, g^x | g^y | Cookie_I | Cookie_R | SA_I | ID_I )
 	 * HASH_R = prf(SKEYID, g^y | g^x | Cookie_R | Cookie_I | SA_I | ID_R )
@@ -348,6 +388,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 		ctx->r_hash, ctx->md_len);
 	p = p->next;
 
+	/* send response */
 	datagram *dgm = new_datagram(0);
 	flatten_isakmp_packet(r, &dgm->data, &dgm->len, 8);
 	dgm->peer_addr = ctx->peer_addr;

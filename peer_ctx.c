@@ -59,6 +59,14 @@ void free_peer_ctx(peer_ctx *ctx)
 		free_peer_ctx(ctx->next);
 		ctx->next = NULL;
 	}
+	if(ctx->key) {
+		free(ctx->key);
+		ctx->key = NULL;
+	}
+	if(ctx->iv) {
+		free(ctx->iv);
+		ctx->iv = NULL;
+	}
 	if(ctx->dh_group) {
 		free(ctx->dh_group);
 		ctx->dh_group = NULL;
