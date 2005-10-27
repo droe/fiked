@@ -19,3 +19,15 @@ config * new_config()
 	memset(cfg, 0, sizeof(config));
 	return cfg;
 }
+
+#define FREE_CFG_MEMBER(x) \
+	if(cfg->x) { \
+		free(cfg->x); \
+		cfg->x = NULL; \
+	}
+void free_config(config *cfg)
+{
+	FREE_CFG_MEMBER(gateway);
+	FREE_CFG_MEMBER(psk);
+}
+#undef FREE_CFG_MEMBER

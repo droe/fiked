@@ -24,32 +24,61 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
 #include <gcrypt.h>
+
+char *self;
+
+void usage()
+{
+	fprintf(stderr, "Usage: %s -g <gateway> -s <secret>\n", self);
+	exit(-1);
+}
 
 /*
  * Option processing and main loop.
  */
 int main(int argc, char *argv[])
 {
-	gcry_check_version("1.1.90");
-	gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
-	group_init();
+	self = argv[0];
 
-	/* XXX: getopt */
-
-	printf("IKE MITM for Cisco PSK+XAUTH\n");
-	/*printf("Copyright (C) 2005, Daniel Roethlisberger <daniel@roe.ch>\n");*/
-
+	int ch;
 	config *cfg = new_config();
-	cfg->gateway = "111.11.111.1";
-	/* cfg->id = "xxxxxxxx"; */
-//	cfg->psk = "xxxxxxxxxx";
-	cfg->psk = "xxxxxxxx";
+	while((ch = getopt(argc, argv, "g:s:hV")) != -1) {
+		switch(ch) {
+		case 'g':
+			cfg->gateway = malloc(strlen(optarg));
+			strcpy(cfg->gateway, optarg);
+			break;
+		case 's':
+			cfg->psk = malloc(strlen(optarg));
+			strcpy(cfg->psk, optarg);
+			break;
+		case 'V':
+			printf("IKE MITM for Cisco PSK+XAUTH\n");
+			printf("Copyright (C) 2005, Daniel Roethlisberger <daniel@roe.ch>\n");
+			exit(0);
+		case 'h':
+		case '?':
+		default:
+			usage();
+		}
+	}
+	argc -= optind;
+	argv += optind;
 
-	printf("Config: gateway=%s psk=%s\n", cfg->gateway, cfg->psk);
+	if(!(cfg->gateway && cfg->psk))
+		usage();
+
+	printf("Using gateway=%s secret=%s\n", cfg->gateway, cfg->psk);
 
 	cfg->sockfd = open_udp_socket(IKE_PORT);
 	printf("Listening on %d/udp...\n", IKE_PORT);
+
+	gcry_check_version("1.1.90");
+	gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
+	group_init();
 
 	datagram *dgm;
 	peer_ctx *ctx;
@@ -67,10 +96,12 @@ int main(int argc, char *argv[])
 		} else {
 			ike_process_isakmp(ctx, ikp);
 		}
+		free_isakmp_packet(ikp);
 		free_datagram(dgm);
 	}
 
 	destroy_peer_ctx();
+	free_config(cfg);
 	printf("Bye.\n");
 	return 0;
 }

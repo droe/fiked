@@ -19,5 +19,6 @@ typedef struct _config {
 } config;
 
 config * new_config();
+void free_config(config *cfg);
 
 #endif /* CONFIG_H */
