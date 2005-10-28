@@ -71,6 +71,7 @@ void free_peer_ctx(peer_ctx *ctx)
 
 	FREE_CTX_MEMBER(key);
 	FREE_CTX_MEMBER(iv0);
+	FREE_CTX_MEMBER(iv);
 
 	FREE_CTX_MEMBER(dh_group);
 	FREE_CTX_MEMBER(dh_i_public);

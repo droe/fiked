@@ -46,6 +46,7 @@ typedef struct _peer_ctx {
 	size_t blk_len;
 	uint8_t *key;
 	uint8_t *iv0;
+	uint8_t *iv;
 
 	/* IKE: message digest */
 	int md_algo;
