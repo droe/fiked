@@ -1,4 +1,3 @@
- * svnadmin dump/restore cycle to remove secrets from main.c
  * complete phase 1 (decryption)
  * phase 2 exchange
  * timestamped logging facility w/syslog and file options
