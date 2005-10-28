@@ -45,9 +45,7 @@ typedef struct _peer_ctx {
 	size_t key_len;
 	size_t blk_len;
 	uint8_t *key;
-	uint8_t *iv;
 	uint8_t *iv0;
-	/* how do we handle the message id? */
 
 	/* IKE: message digest */
 	int md_algo;
