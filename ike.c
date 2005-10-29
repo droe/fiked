@@ -33,11 +33,160 @@
  *         implementation instead.
  */
 
+/* forward declarations */
+void ike_process_new(peer_ctx *ctx, struct isakmp_packet *ikp);
+
 /* minimum */
 static inline int min(int a, int b)
 {
 	return (a < b) ? a : b;
 }
+
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * IKE encryption and decryption routines                                    *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/*
+ * Encrypts or decrypts the buffer buf.
+ * Buf must already be padded to blocksize of the encryption algorithm in use.
+ */
+void ike_crypt_crypt(int algo, int enc, uint8_t *buf, size_t buflen,
+	uint8_t *key, size_t keylen, uint8_t *iv, size_t ivlen)
+{
+	gcry_cipher_hd_t crypt_ctx;
+	gcry_cipher_open(&crypt_ctx, algo, GCRY_CIPHER_MODE_CBC, 0);
+	gcry_cipher_setkey(crypt_ctx, key, keylen);
+	gcry_cipher_setiv(crypt_ctx, iv, ivlen);
+	if(!enc)
+		gcry_cipher_decrypt(crypt_ctx, buf, buflen, NULL, 0);
+	else
+		gcry_cipher_encrypt(crypt_ctx, buf, buflen, NULL, 0);
+	gcry_cipher_close(crypt_ctx);
+}
+
+/*
+ * Generic encryption/decryption routine.
+ * Handles phase 1 and phase 2.
+ */
+int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
+{
+	/*
+	 * phase 1, first:	iv = hash(i_dh_public r_dh_public)
+	 * phase 1, rest:	iv = last_block_phase1
+	 * phase 2, first:	iv = hash(last_block_phase1 message_id)
+	 * phase 2, rest:	iv = last_block_phase2
+	 */
+
+	gcry_md_hd_t md_ctx;
+	int enc = !(ikp->flags & ISAKMP_FLAG_E);
+
+	if(ctx->state == STATE_PHASE1) {
+		/* iv0 not set means no phase 1 encrypted packets yet */
+		if(!ctx->iv0) {
+			/* initial phase 1 iv */
+			gcry_md_open(&md_ctx, ctx->md_algo, 0);
+			gcry_md_write(md_ctx, ctx->dh_i_public, dh_getlen(ctx->dh_group));
+			gcry_md_write(md_ctx, ctx->dh_r_public, dh_getlen(ctx->dh_group));
+			gcry_md_final(md_ctx);
+			ctx->iv0 = malloc(ctx->blk_len);
+			memcpy(ctx->iv0, gcry_md_read(md_ctx, 0), ctx->blk_len);
+			gcry_md_close(md_ctx);
+		}
+		uint8_t *fp;
+		size_t fp_len;
+		int reject = 0;
+		if(enc) {
+			/* flatten and encrypt payload */
+			flatten_isakmp_payload(ikp->u.payload, &fp, &fp_len,
+				ctx->blk_len);
+			ike_crypt_crypt(ctx->algo, enc, fp, fp_len,
+				ctx->key, ctx->key_len, ctx->iv0, ctx->blk_len);
+			/* swap payload for encrypted buffer */
+			free_isakmp_payload(ikp->u.payload);
+			ikp->u.enc.length = fp_len;
+			ikp->u.enc.data = malloc(ikp->u.enc.length);
+			memcpy(ikp->u.enc.data, fp, ikp->u.enc.length);
+			/* store last encrypted phase 1 block */
+			memcpy(ctx->iv0, fp + fp_len - ctx->blk_len, ctx->blk_len);
+			free(fp);
+		} else { /* dec */
+			/* copy encrypted buffer */
+			fp_len = ikp->u.enc.length;
+			fp = malloc(fp_len);
+			memcpy(fp, ikp->u.enc.data, fp_len);
+			/* store last encrypted phase 1 block */
+			uint8_t *newiv = malloc(ctx->blk_len);
+			memcpy(newiv, fp + fp_len - ctx->blk_len, ctx->blk_len);
+			/* decrypt encrypted buffer */
+			ike_crypt_crypt(ctx->algo, enc, fp, fp_len,
+				ctx->key, ctx->key_len, ctx->iv0, ctx->blk_len);
+			/* copy stored last block to iv0 */
+			memcpy(ctx->iv0, newiv, ctx->blk_len);
+			free(newiv);
+			/* swap encrypted buffer for decoded payload */
+			const uint8_t *cfp = fp;
+			struct isakmp_payload *pl = parse_isakmp_payload(
+				ikp->u.enc.type,
+				&cfp, &fp_len, &reject);
+			if(reject) {
+				fprintf(stderr, "[%s:%d]: illegal decrypted payload (%d), packet ignored\n",
+					inet_ntoa(ctx->peer_addr.sin_addr),
+					ntohs(ctx->peer_addr.sin_port),
+					reject);
+				return reject;
+			}
+			free(ikp->u.enc.data);
+			ikp->u.payload = pl;
+			free(fp);
+		}
+#if 0
+		fprintf(stderr, "iv0:     ");
+		for(int i = 0; i < ctx->blk_len; i++) {
+			fprintf(stderr, " %02x", ctx->iv0[i]);
+		}
+		fprintf(stderr, "\n");
+#endif
+	} else { /* phase 2 */
+printf("phase 2 encryption not implemented");
+		/* XXX */
+		/* grab message id */
+		/* fetch message_iv */
+		/*  */
+		/* XXX: call enc sub from here */
+	}
+
+	/* flip the "encrypted" flag */
+	ikp->flags ^= ISAKMP_FLAG_E;
+
+	return 0;
+
+#if 0
+	info_ex = block[ISAKMP_EXCHANGE_TYPE_O] == ISAKMP_EXCHANGE_INFORMATIONAL;
+
+	/* generate new phase 2 iv */
+	gcry_md_hd_t md_ctx;
+	gcry_md_open(&md_ctx, s->md_algo, 0);
+	gcry_md_write(md_ctx, s->initial_iv, s->ivlen);
+	gcry_md_write(md_ctx, block + ISAKMP_MESSAGE_ID_O, 4);
+	gcry_md_final(md_ctx);
+	if (info_ex) {
+		iv = xallocc(s->ivlen);
+		memcpy(iv, gcry_md_read(md_ctx, 0), s->ivlen);
+	} else {
+		memcpy(s->current_iv, gcry_md_read(md_ctx, 0), s->ivlen);
+		memcpy(s->current_iv_msgid, block + ISAKMP_MESSAGE_ID_O, 4);
+	}
+	gcry_md_close(md_ctx);
+#endif
+}
+
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Security Association payload helpers                                      *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
  * Is this a supported SA transform?
@@ -137,6 +286,63 @@ void sa_populate_from(peer_ctx* ctx, struct isakmp_payload *response, struct isa
 	ctx->md_algo = GCRY_MD_MD5;			/* not sexy */
 	ctx->dh_group = group_get(OAKLEY_GRP_2);	/* not sexy */
 }
+
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Informational packet handler                                              *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/*
+ * Process an IKE Informational packet.
+ * Currently only supports unencrypted payloads.
+ * XXX: handle encryption
+ */
+void ike_process_informational(peer_ctx *ctx, struct isakmp_packet *ikp)
+{
+	for(struct isakmp_payload *p = ikp->u.payload; p; p = p->next) {
+	switch(p->type) {
+		case ISAKMP_PAYLOAD_N:
+			if(p->u.n.type == ISAKMP_N_INVALID_PAYLOAD_TYPE) {
+				printf("[%s:%d]: error from peer: invalid payload type, reset state\n",
+					inet_ntoa(ctx->peer_addr.sin_addr),
+					ntohs(ctx->peer_addr.sin_port));
+					reset_peer_ctx(ctx);
+			} else {
+				printf("[%s:%d]: unhandled informational notification type 0x%02x, ignored\n",
+					inet_ntoa(ctx->peer_addr.sin_addr),
+					ntohs(ctx->peer_addr.sin_port),
+					p->u.n.type);
+			}
+			break;
+
+		default:
+			printf("[%s:%d]: unhandled informational payload type 0x%02x, ignored\n",
+				inet_ntoa(ctx->peer_addr.sin_addr),
+				ntohs(ctx->peer_addr.sin_port),
+				p->type);
+			break;
+	}}
+}
+
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Phase 2 handlers                                                          *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/*
+ * Process an IKE packet in STATE_PHASE2
+ */
+void ike_process_phase2() {
+	/* XXX: implement phase 2 */
+}
+
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Phase 1 handlers                                                          *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
  * Process an IKE Aggressive Mode packet in STATE_NEW.
@@ -417,140 +623,6 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 }
 
 /*
- * Encrypts or decrypts the buffer buf.
- * Buf must already be padded to blocksize of the encryption algorithm in use.
- */
-void ike_crypt_crypt(int algo, int enc, uint8_t *buf, size_t buflen,
-	uint8_t *key, size_t keylen, uint8_t *iv, size_t ivlen)
-{
-	gcry_cipher_hd_t crypt_ctx;
-	gcry_cipher_open(&crypt_ctx, algo, GCRY_CIPHER_MODE_CBC, 0);
-	gcry_cipher_setkey(crypt_ctx, key, keylen);
-	gcry_cipher_setiv(crypt_ctx, iv, ivlen);
-	if(!enc)
-		gcry_cipher_decrypt(crypt_ctx, buf, buflen, NULL, 0);
-	else
-		gcry_cipher_encrypt(crypt_ctx, buf, buflen, NULL, 0);
-	gcry_cipher_close(crypt_ctx);
-}
-
-/*
- * Generic encryption/decryption routine.
- * Handles phase 1 and phase 2.
- */
-int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
-{
-	/*
-	 * phase 1, first:	iv = hash(i_dh_public r_dh_public)
-	 * phase 1, rest:	iv = last_block_phase1
-	 * phase 2, first:	iv = hash(last_block_phase1 message_id)
-	 * phase 2, rest:	iv = last_block_phase2
-	 */
-
-	gcry_md_hd_t md_ctx;
-	int enc = !(ikp->flags & ISAKMP_FLAG_E);
-
-	if(ctx->state == STATE_PHASE1) {
-		/* iv0 not set means no phase 1 encrypted packets yet */
-		if(!ctx->iv0) {
-			/* initial phase 1 iv */
-			gcry_md_open(&md_ctx, ctx->md_algo, 0);
-			gcry_md_write(md_ctx, ctx->dh_i_public, dh_getlen(ctx->dh_group));
-			gcry_md_write(md_ctx, ctx->dh_r_public, dh_getlen(ctx->dh_group));
-			gcry_md_final(md_ctx);
-			ctx->iv0 = malloc(ctx->blk_len);
-			memcpy(ctx->iv0, gcry_md_read(md_ctx, 0), ctx->blk_len);
-			gcry_md_close(md_ctx);
-		}
-		uint8_t *fp;
-		size_t fp_len;
-		int reject = 0;
-		if(enc) {
-			/* flatten and encrypt payload */
-			flatten_isakmp_payload(ikp->u.payload, &fp, &fp_len,
-				ctx->blk_len);
-			ike_crypt_crypt(ctx->algo, enc, fp, fp_len,
-				ctx->key, ctx->key_len, ctx->iv0, ctx->blk_len);
-			/* swap payload for encrypted buffer */
-			free_isakmp_payload(ikp->u.payload);
-			ikp->u.enc.length = fp_len;
-			ikp->u.enc.data = malloc(ikp->u.enc.length);
-			memcpy(ikp->u.enc.data, fp, ikp->u.enc.length);
-			/* store last encrypted phase 1 block */
-			memcpy(ctx->iv0, fp + fp_len - ctx->blk_len, ctx->blk_len);
-			free(fp);
-		} else { /* dec */
-			/* copy encrypted buffer */
-			fp_len = ikp->u.enc.length;
-			fp = malloc(fp_len);
-			memcpy(fp, ikp->u.enc.data, fp_len);
-			/* store last encrypted phase 1 block */
-			uint8_t *newiv = malloc(ctx->blk_len);
-			memcpy(newiv, fp + fp_len - ctx->blk_len, ctx->blk_len);
-			/* decrypt encrypted buffer */
-			ike_crypt_crypt(ctx->algo, enc, fp, fp_len,
-				ctx->key, ctx->key_len, ctx->iv0, ctx->blk_len);
-			/* copy stored last block to iv0 */
-			memcpy(ctx->iv0, newiv, ctx->blk_len);
-			free(newiv);
-			/* swap encrypted buffer for decoded payload */
-			const uint8_t *cfp = fp;
-			struct isakmp_payload *pl = parse_isakmp_payload(
-				ikp->u.enc.type,
-				&cfp, &fp_len, &reject);
-			if(reject) {
-				fprintf(stderr, "[%s:%d]: illegal decrypted payload (%d), packet ignored\n",
-					inet_ntoa(ctx->peer_addr.sin_addr),
-					ntohs(ctx->peer_addr.sin_port),
-					reject);
-				return reject;
-			}
-			free(ikp->u.enc.data);
-			ikp->u.payload = pl;
-			free(fp);
-		}
-#if 0
-		fprintf(stderr, "iv0:     ");
-		for(int i = 0; i < ctx->blk_len; i++) {
-			fprintf(stderr, " %02x", ctx->iv0[i]);
-		}
-		fprintf(stderr, "\n");
-#endif
-	} else { /* phase 2 */
-printf("phase 2 encryption not implemented");
-		/* XXX */
-		/* grab message id */
-		/* fetch message_iv */
-		/*  */
-		/* XXX: call enc sub from here */
-	}
-
-	/* flip the "encrypted" flag */
-	ikp->flags ^= ISAKMP_FLAG_E;
-
-	return 0;
-
-#if 0
-	info_ex = block[ISAKMP_EXCHANGE_TYPE_O] == ISAKMP_EXCHANGE_INFORMATIONAL;
-
-	/* generate new phase 2 iv */
-	gcry_md_hd_t md_ctx;
-	gcry_md_open(&md_ctx, s->md_algo, 0);
-	gcry_md_write(md_ctx, s->initial_iv, s->ivlen);
-	gcry_md_write(md_ctx, block + ISAKMP_MESSAGE_ID_O, 4);
-	gcry_md_final(md_ctx);
-	if (info_ex) {
-		iv = xallocc(s->ivlen);
-		memcpy(iv, gcry_md_read(md_ctx, 0), s->ivlen);
-	} else {
-		memcpy(s->current_iv, gcry_md_read(md_ctx, 0), s->ivlen);
-		memcpy(s->current_iv_msgid, block + ISAKMP_MESSAGE_ID_O, 4);
-	}
-	gcry_md_close(md_ctx);
-#endif
-}
-
-/*
  * Process the last IKE Aggressive Mode packet in phase 1, containing i_hash.
  * Brings us to phase 2 (hopefully).
  */
@@ -602,34 +674,43 @@ void ike_do_phase1_end(peer_ctx *ctx, struct isakmp_packet *ikp)
 }
 
 /*
- * Process an IKE Informational packet.
+ * Process an IKE packet in STATE_PHASE1.
  */
-void ike_process_informational(peer_ctx *ctx, struct isakmp_packet *ikp)
+void ike_process_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
-	for(struct isakmp_payload *p = ikp->u.payload; p; p = p->next) {
-	switch(p->type) {
-		case ISAKMP_PAYLOAD_N:
-			if(p->u.n.type == ISAKMP_N_INVALID_PAYLOAD_TYPE) {
-				printf("[%s:%d]: error from peer: invalid payload type, reset state\n",
-					inet_ntoa(ctx->peer_addr.sin_addr),
-					ntohs(ctx->peer_addr.sin_port));
-					reset_peer_ctx(ctx);
-			} else {
-				printf("[%s:%d]: unhandled informational notification type 0x%02x, ignored\n",
-					inet_ntoa(ctx->peer_addr.sin_addr),
-					ntohs(ctx->peer_addr.sin_port),
-					p->u.n.type);
-			}
+	if(!(ikp->flags & ISAKMP_FLAG_E)) {
+		printf("[%s:%d]: unencrypted packet in STATE_PHASE1, reset state\n",
+			inet_ntoa(ctx->peer_addr.sin_addr),
+			ntohs(ctx->peer_addr.sin_port));
+		reset_peer_ctx(ctx);
+		ike_process_new(ctx, ikp);
+		return;
+	}
+
+	switch(ikp->exchange_type) {
+		case ISAKMP_EXCHANGE_AGGRESSIVE:
+			if(!ike_crypt(ctx, ikp))
+				ike_do_phase1_end(ctx, ikp);
+			break;
+
+		case ISAKMP_EXCHANGE_INFORMATIONAL:
+			ike_process_informational(ctx, ikp);
 			break;
 
 		default:
-			printf("[%s:%d]: unhandled informational payload type 0x%02x, ignored\n",
+			printf("[%s:%d]: unhandled exchange type 0x%02x in STATE_PHASE1, ignored\n",
 				inet_ntoa(ctx->peer_addr.sin_addr),
 				ntohs(ctx->peer_addr.sin_port),
-				p->type);
+				ikp->exchange_type);
 			break;
-	}}
+	}
 }
+
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Phase 0 handler                                                           *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
  * Process an IKE packet in STATE_NEW.
@@ -664,53 +745,17 @@ void ike_process_new(peer_ctx *ctx, struct isakmp_packet *ikp)
 	}
 }
 
-/*
- * Process an IKE packet in STATE_PHASE1.
- */
-void ike_process_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
-{
-	if(!(ikp->flags & ISAKMP_FLAG_E)) {
-		printf("[%s:%d]: unencrypted packet in STATE_PHASE1, reset state\n",
-			inet_ntoa(ctx->peer_addr.sin_addr),
-			ntohs(ctx->peer_addr.sin_port));
-		reset_peer_ctx(ctx);
-		ike_process_new(ctx, ikp);
-		return;
-	}
 
-	switch(ikp->exchange_type) {
-		case ISAKMP_EXCHANGE_AGGRESSIVE:
-			if(!ike_crypt(ctx, ikp))
-				ike_do_phase1_end(ctx, ikp);
-			break;
 
-		case ISAKMP_EXCHANGE_INFORMATIONAL:
-			ike_process_informational(ctx, ikp);
-			break;
-
-		default:
-			printf("[%s:%d]: unhandled exchange type 0x%02x in STATE_PHASE1, ignored\n",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port),
-				ikp->exchange_type);
-			break;
-	}
-}
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Main packet handler                                                       *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
  * Process an incoming IKE/ISAKMP packet.
  */
 void ike_process_isakmp(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
-	/*fprintf(stderr,
-		"DEBUG: ISAKMP from %s:%d version=0x%02x type=0x%02x flags=0x%02x payload=0x%02x\n",
-		inet_ntoa(ctx->peer_addr.sin_addr),
-		ntohs(ctx->peer_addr.sin_port),
-		ikp->isakmp_version,
-		ikp->exchange_type,
-		ikp->flags,
-		ikp->u.payload->type);*/
-
 	/* need some mechanism to clean out old states after some time */
 	/* maybe: if r_cookie == 0, reset to STATE_NEW */
 
@@ -723,8 +768,9 @@ void ike_process_isakmp(peer_ctx *ctx, struct isakmp_packet *ikp)
 			ike_process_phase1(ctx, ikp);
 			break;
 
-		/* XXX: STATE_PHASE2_... */
-		/* XXX: more states */
+		case STATE_PHASE2:
+			ike_process_phase2(ctx, ikp);
+			break;
 
 		default:
 			printf("[%s:%d]: unhandled state, reset state\n",
