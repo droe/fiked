@@ -1,10 +1,23 @@
- * complete phase 1
- * phase 2 exchange
- * timestamped logging facility w/syslog and file options
- * daemon mode (-d)
+basic functionality:
+ * implement phase 2 crypto
+ * implement xauth begin
+ * implement modecfg xauth dispatcher
+ * implement xauth reply
+
+correctness:
+ * catch SIGINT to leave main loop
  * malloc() safety
  * find remaining memory leaks
- * add config file with ipsec_id:secret pairs
- * catch SIGINT to leave main loop
+
+failure resistance:
  * dup-save recv() (detect resends)
  * timed context cleanup runs
+
+nice to have features:
+ * timestamped logging facility w/syslog and file options
+ * daemon mode (-d)
+ * add config file with ipsec_id:secret pairs
+
+legal:
+ * switch to GPL
+ * make public
