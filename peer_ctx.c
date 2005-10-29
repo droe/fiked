@@ -73,31 +73,13 @@ peer_ctx * get_peer_ctx(datagram *dgm, config *cfg)
 	return found;
 }
 
-void reset_peer_ctx(peer_ctx *ctx)
-{
-	ctx->state = STATE_NEW;
-	memset(ctx->i_nonce, 0, sizeof(ctx->i_nonce));
-	memset(ctx->r_nonce, 0, sizeof(ctx->r_nonce));
-}
-
-void destroy_peer_ctx()
-{
-	free_peer_ctx(head);
-	head = NULL;
-}
-
 #define FREE_CTX_MEMBER(x) \
 	if(ctx->x) { \
 		free(ctx->x); \
 		ctx->x = NULL; \
 	}
-void free_peer_ctx(peer_ctx *ctx)
+void clear_peer_ctx(peer_ctx *ctx)
 {
-	if(ctx->next) {
-		free_peer_ctx(ctx->next);
-		ctx->next = NULL;
-	}
-
 	FREE_CTX_MEMBER(ipsec_id);
 	FREE_CTX_MEMBER(xauth_username);
 	FREE_CTX_MEMBER(xauth_password);
@@ -126,7 +108,30 @@ void free_peer_ctx(peer_ctx *ctx)
 	FREE_CTX_MEMBER(r_nonce);
 	FREE_CTX_MEMBER(i_hash);
 	FREE_CTX_MEMBER(r_hash);
-
-	free(ctx);
 }
 #undef FREE_CTX_MEMBER
+
+void reset_peer_ctx(peer_ctx *ctx)
+{
+	clear_peer_ctx(ctx);
+
+	ctx->state = STATE_NEW;
+	memset(ctx->i_cookie, 0, sizeof(ctx->i_cookie));
+	memset(ctx->r_cookie, 0, sizeof(ctx->r_cookie));
+}
+
+void destroy_peer_ctx()
+{
+	free_peer_ctx(head);
+	head = NULL;
+}
+
+void free_peer_ctx(peer_ctx *ctx)
+{
+	if(ctx->next) {
+		free_peer_ctx(ctx->next);
+		ctx->next = NULL;
+	}
+	clear_peer_ctx(ctx);
+	free(ctx);
+}

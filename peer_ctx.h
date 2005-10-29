@@ -38,7 +38,7 @@ typedef struct _peer_ctx {
 	enum {
 		STATE_NEW,
 		STATE_PHASE1,
-/*		STATE_PHASE2_INIT,*/
+		STATE_PHASE2,
 	} state;
 
 	/* the interesting stuff */

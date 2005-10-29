@@ -7,3 +7,4 @@
  * add config file with ipsec_id:secret pairs
  * catch SIGINT to leave main loop
  * dup-save recv() (detect resends)
+ * timed context cleanup runs

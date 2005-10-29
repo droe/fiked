@@ -428,7 +428,10 @@ void free_isakmp_packet(struct isakmp_packet *p)
 {
 	if (p == NULL)
 		return;
-	free_isakmp_payload(p->u.payload);
+	if(p->flags & ISAKMP_FLAG_E)
+		free(p->u.enc.data);
+	else
+		free_isakmp_payload(p->u.payload);
 	free(p);
 }
 

@@ -438,7 +438,7 @@ void ike_crypt_crypt(int algo, int enc, uint8_t *buf, size_t buflen,
  * Generic encryption/decryption routine.
  * Handles phase 1 and phase 2.
  */
-void ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
+int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
 	/*
 	 * phase 1, first:	iv = hash(i_dh_public r_dh_public)
@@ -484,7 +484,6 @@ void ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 			fp_len = ikp->u.enc.length;
 			fp = malloc(fp_len);
 			memcpy(fp, ikp->u.enc.data, fp_len);
-			free(ikp->u.enc.data);
 			/* store last encrypted phase 1 block */
 			uint8_t *newiv = malloc(ctx->blk_len);
 			memcpy(newiv, fp + fp_len - ctx->blk_len, ctx->blk_len);
@@ -496,18 +495,18 @@ void ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 			free(newiv);
 			/* swap encrypted buffer for decoded payload */
 			const uint8_t *cfp = fp;
-			ikp->u.payload = parse_isakmp_payload(
+			struct isakmp_payload *pl = parse_isakmp_payload(
 				ikp->u.enc.type,
 				&cfp, &fp_len, &reject);
 			if(reject) {
-				fprintf(stderr, "[%s:%d]: illegal decrypted payload (%d), payload ignored\n",
+				fprintf(stderr, "[%s:%d]: illegal decrypted payload (%d), packet ignored\n",
 					inet_ntoa(ctx->peer_addr.sin_addr),
 					ntohs(ctx->peer_addr.sin_port),
 					reject);
-				/* XXX: need some action here, maybe go back 1 IV
-				 * and retry, or maybe just dupe-save recv()
-				 */
+				return reject;
 			}
+			free(ikp->u.enc.data);
+			ikp->u.payload = pl;
 			free(fp);
 		}
 #if 0
@@ -529,6 +528,8 @@ printf("phase 2 encryption not implemented");
 	/* flip the "encrypted" flag */
 	ikp->flags ^= ISAKMP_FLAG_E;
 
+	return 0;
+
 #if 0
 	info_ex = block[ISAKMP_EXCHANGE_TYPE_O] == ISAKMP_EXCHANGE_INFORMATIONAL;
 
@@ -547,7 +548,6 @@ printf("phase 2 encryption not implemented");
 	}
 	gcry_md_close(md_ctx);
 #endif
-
 }
 
 /*
@@ -556,11 +556,49 @@ printf("phase 2 encryption not implemented");
  */
 void ike_do_phase1_end(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
-	/* XXX */
+	/* get the payloads */
+	struct isakmp_payload *h = NULL;
+	for(struct isakmp_payload *p = ikp->u.payload; p; p = p->next) {
+	switch(p->type) {
+		case ISAKMP_PAYLOAD_HASH:
+			h = p;
+			break;
 
-	printf("do_phase1_end called\n");
+		case ISAKMP_PAYLOAD_N:
+		case ISAKMP_PAYLOAD_VID:
+			/* silently ignore for now */
+			break;
 
-	/*ctx->state = STATE_PHASE2;*/
+		default:
+			printf("[%s:%d]: unhandled payload type 0x%02x, ignored\n",
+				inet_ntoa(ctx->peer_addr.sin_addr),
+				ntohs(ctx->peer_addr.sin_port),
+				p->type);
+			break;
+	}}
+
+	/* do we have all payloads? */
+	if(!h) {
+		printf("[%s:%d]: missing payload: h=%p, ignored\n",
+			inet_ntoa(ctx->peer_addr.sin_addr),
+			ntohs(ctx->peer_addr.sin_port),
+			(void*)h);
+		return;
+	}
+
+	/* verify hash */
+	if(h->u.hash.length != ctx->md_len ||
+		memcmp(h->u.hash.data, ctx->i_hash, ctx->md_len)) {
+		printf("[%s:%d]: IKE phase 1 auth failed (i_hash mismatch)\n",
+			inet_ntoa(ctx->peer_addr.sin_addr),
+			ntohs(ctx->peer_addr.sin_port));
+		return;
+	}
+
+	printf("[%s:%d]: IKE phase 1 complete\n",
+		inet_ntoa(ctx->peer_addr.sin_addr),
+		ntohs(ctx->peer_addr.sin_port));
+	ctx->state = STATE_PHASE2;
 }
 
 /*
@@ -642,8 +680,8 @@ void ike_process_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 	switch(ikp->exchange_type) {
 		case ISAKMP_EXCHANGE_AGGRESSIVE:
-			ike_crypt(ctx, ikp);
-			ike_do_phase1_end(ctx, ikp);
+			if(!ike_crypt(ctx, ikp))
+				ike_do_phase1_end(ctx, ikp);
 			break;
 
 		case ISAKMP_EXCHANGE_INFORMATIONAL:
