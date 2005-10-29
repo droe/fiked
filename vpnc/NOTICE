@@ -1,4 +1,8 @@
 The source code in this directory was taken from VPNC SVN.
+Note that the ISAKMP packet handling code was modified in
+order to accomodate encrypted payloads in isakmp_packet
+structures.  The inner workings of the parse and flatten
+routines were changes accordingly.
 
 VPNC is a VPN client compatible with Cisco's EasyVPN equipment.
 It supports IPSec (ESP) with Mode Configuration and Xauth.

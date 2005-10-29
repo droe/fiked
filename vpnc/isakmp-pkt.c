@@ -247,11 +247,16 @@ static void flow_payload(struct flow *f, struct isakmp_payload *p)
 	flow_payload(f, p->next);
 }
 
-void flatten_isakmp_payload(struct isakmp_payload *p, uint8_t ** result, size_t * size)
+void flatten_isakmp_payload(struct isakmp_payload *p, uint8_t ** result, size_t * size, size_t blksz)
 {
 	struct flow f;
 	init_flow(&f);
 	flow_payload(&f, p);
+
+	if(blksz) {
+		flow_reserve(&f, (blksz - ((f.end - f.base) % blksz)) % blksz);
+	}
+
 	*result = f.base;
 	*size = f.end - f.base;
 }
@@ -259,31 +264,27 @@ void flatten_isakmp_payload(struct isakmp_payload *p, uint8_t ** result, size_t 
 void flatten_isakmp_packet(struct isakmp_packet *p, uint8_t ** result, size_t * size, size_t blksz)
 {
 	struct flow f;
-	size_t lpos, sz, padding;
+	size_t lpos;
 
 	init_flow(&f);
 	flow_x(&f, p->i_cookie, ISAKMP_COOKIE_LENGTH);
 	flow_x(&f, p->r_cookie, ISAKMP_COOKIE_LENGTH);
-	if (p->u.payload == NULL)
-		flow_1(&f, 0);
+	if (p->flags & ISAKMP_FLAG_E)
+		flow_1(&f, p->u.enc.type);
 	else
-		flow_1(&f, p->u.payload->type);
+		if (p->u.payload == NULL)
+			flow_1(&f, 0);
+		else
+			flow_1(&f, p->u.payload->type);
 	flow_1(&f, p->isakmp_version);
 	flow_1(&f, p->exchange_type);
 	flow_1(&f, p->flags);
 	flow_4(&f, p->message_id);
 	lpos = flow_reserve(&f, 4);
-	flow_payload(&f, p->u.payload);
 	if (p->flags & ISAKMP_FLAG_E) {
-		assert(blksz != 0);
-		sz = (f.end - f.base) - ISAKMP_PAYLOAD_O;
-		padding = blksz - (sz % blksz);
-		if (padding == blksz)
-			padding = 0;
-/*		DEBUG(3, printf("size = %ld, blksz = %ld, padding = %ld\n",
-				(long)sz, (long)blksz, (long)padding));
-*/
-		flow_reserve(&f, padding);
+		flow_x(&f, p->u.enc.data, p->u.enc.length);
+	} else {
+		flow_payload(&f, p->u.payload);
 	}
 	f.base[lpos] = (f.end - f.base) >> 24;
 	f.base[lpos + 1] = (f.end - f.base) >> 16;
@@ -347,7 +348,7 @@ struct isakmp_payload *new_isakmp_data_payload(uint8_t type, const void *data, s
 	return result;
 }
 
-static void free_isakmp_payload(struct isakmp_payload *p)
+void free_isakmp_payload(struct isakmp_payload *p)
 {
 	struct isakmp_payload *nxt;
 
@@ -517,7 +518,7 @@ static struct isakmp_attribute *parse_isakmp_attributes(const uint8_t ** data_p,
 	return r;
 }
 
-static struct isakmp_payload *parse_isakmp_payload(uint8_t type,
+struct isakmp_payload *parse_isakmp_payload(uint8_t type,
 	const uint8_t ** data_p, size_t * data_len_p, int * reject)
 {
 	const uint8_t *data = *data_p;
@@ -533,6 +534,7 @@ static struct isakmp_payload *parse_isakmp_payload(uint8_t type,
 	/*hex_dump("PARSING PAYLOAD type", &type, UINT8);*/
 	if (type == 0)
 		return NULL;
+
 	if (type <= ISAKMP_PAYLOAD_MODECFG_ATTR) {
 		if (data_len < min_payload_len[type]) {
 			*reject = ISAKMP_N_PAYLOAD_MALFORMED;
@@ -795,9 +797,10 @@ struct isakmp_packet *parse_isakmp_packet(const uint8_t * data, size_t data_len,
 	data_len -= o_data_len - isakmp_data_len; /* ignore padding */
 
 	if(r->flags & ISAKMP_FLAG_E) {
-		r->u.enc.data = malloc(data_len); /* memory leak */
+		r->u.enc.data = malloc(data_len);
 		memcpy(r->u.enc.data, data, data_len);
 		r->u.enc.length = data_len;
+		r->u.enc.type = payload;
 	} else
 		r->u.payload = parse_isakmp_payload(payload, &data, &data_len, &reason);
 

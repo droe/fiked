@@ -20,10 +20,16 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+typedef struct _message_iv {
+	struct _message_iv *next;
+	uint32_t id; /* primary key */
+	uint8_t *iv;
+} message_iv;
+
 typedef struct _peer_ctx {
 	/* bookkeeping */
-	struct sockaddr_in peer_addr; /* primary key */
 	struct _peer_ctx *next;
+	struct sockaddr_in peer_addr; /* primary key */
 
 	/* pointer to global configuration */
 	config *cfg;
@@ -46,7 +52,7 @@ typedef struct _peer_ctx {
 	size_t blk_len;
 	uint8_t *key;
 	uint8_t *iv0;
-	uint8_t *iv;
+	message_iv *msg_iv;
 
 	/* IKE: message digest */
 	int md_algo;
@@ -76,9 +82,12 @@ typedef struct _peer_ctx {
 	uint8_t *r_hash;
 } peer_ctx;
 
-peer_ctx * get_peer_ctx(datagram *dgm, config *cfg);
+peer_ctx * get_peer_ctx(datagram *dgm, config *cfg); /* XXX: non-singular */
 void reset_peer_ctx(peer_ctx *ctx);
 void free_peer_ctx(peer_ctx *ctx);
 void destroy_peer_ctx();
+
+message_iv * get_message_iv(uint32_t id, message_iv *head);
+void free_message_iv(message_iv *msg_iv);
 
 #endif /* PEER_CTX_H */

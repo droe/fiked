@@ -1,7 +1,9 @@
- * complete phase 1 (decryption)
+ * complete phase 1
  * phase 2 exchange
  * timestamped logging facility w/syslog and file options
  * daemon mode (-d)
  * malloc() safety
  * find remaining memory leaks
  * add config file with ipsec_id:secret pairs
+ * catch SIGINT to leave main loop
+ * dup-save recv() (detect resends)

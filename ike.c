@@ -13,6 +13,7 @@
 #include "datagram.h"
 #include "vpnc/math_group.h"
 #include "vpnc/dh.h"
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -21,6 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <gcrypt.h>
 
 /*
@@ -129,6 +131,11 @@ void sa_populate_from(peer_ctx* ctx, struct isakmp_payload *response, struct isa
 		*ra = *pa;
 		ra->next = NULL;
 	}
+
+	/* store algorithm identifyers in peer context */
+	ctx->algo = GCRY_CIPHER_3DES;			/* not sexy */
+	ctx->md_algo = GCRY_MD_MD5;			/* not sexy */
+	ctx->dh_group = group_get(OAKLEY_GRP_2);	/* not sexy */
 }
 
 /*
@@ -208,7 +215,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	/* grab i_sa */
 	struct isakmp_payload *tmp = sa->next;
 	sa->next = NULL;
-	flatten_isakmp_payload(sa, &ctx->i_sa, &ctx->i_sa_len);
+	flatten_isakmp_payload(sa, &ctx->i_sa, &ctx->i_sa_len, 1);
 	sa->next = tmp;
 
 	/* grab dh_i_public */
@@ -223,7 +230,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	/* grab i_id */
 	tmp = id->next;
 	id->next = NULL;
-	flatten_isakmp_payload(id, &ctx->i_id, &ctx->i_id_len);
+	flatten_isakmp_payload(id, &ctx->i_id, &ctx->i_id_len, 1);
 	id->next = tmp;
 
 	/* generate r_cookie */
@@ -233,17 +240,6 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	ctx->r_nonce_len = ctx->i_nonce_len;
 	ctx->r_nonce = malloc(ctx->r_nonce_len);
 	gcry_create_nonce(ctx->r_nonce, ctx->r_nonce_len);
-
-	/* set up hashing */
-	ctx->md_algo = GCRY_MD_MD5; /* not sexy */
-	ctx->md_len = gcry_md_get_algo_dlen(ctx->md_algo);
-
-	/* complete dh key exchange */
-	ctx->dh_group = group_get(OAKLEY_GRP_2); /* not sexy */
-	ctx->dh_r_public = malloc(dh_getlen(ctx->dh_group));
-	dh_create_exchange(ctx->dh_group, ctx->dh_r_public);
-	ctx->dh_secret = malloc(dh_getlen(ctx->dh_group));
-	dh_create_shared(ctx->dh_group, ctx->dh_secret, ctx->dh_i_public);
 
 	/* header */
 	struct isakmp_packet *r = new_isakmp_packet();
@@ -258,6 +254,15 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	r->u.payload = new_isakmp_payload(ISAKMP_PAYLOAD_SA);
 	sa_populate_from(ctx, r->u.payload, sa);
 	struct isakmp_payload *p = r->u.payload;
+
+	/* set up hashing */
+	ctx->md_len = gcry_md_get_algo_dlen(ctx->md_algo);
+
+	/* complete dh key exchange */
+	ctx->dh_r_public = malloc(dh_getlen(ctx->dh_group));
+	dh_create_exchange(ctx->dh_group, ctx->dh_r_public);
+	ctx->dh_secret = malloc(dh_getlen(ctx->dh_group));
+	dh_create_shared(ctx->dh_group, ctx->dh_secret, ctx->dh_i_public);
 
 	/* payload: ke */
 	p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_KE,
@@ -278,7 +283,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	p->u.id.length = sizeof(in_addr_t);
 	p->u.id.data = malloc(p->u.id.length);
 	*((in_addr_t*)p->u.id.data) = inet_addr(ctx->cfg->gateway);
-	flatten_isakmp_payload(p, &ctx->r_id, &ctx->r_id_len);
+	flatten_isakmp_payload(p, &ctx->r_id, &ctx->r_id_len, 1);
 
 	/*
 	 * SKEYID = hmac(pre-shared-key, Nonce_I | Nonce_R)
@@ -338,7 +343,6 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	gcry_md_close(md_ctx);
 
 	/* encryption key */
-	ctx->algo = GCRY_CIPHER_3DES; /* not sexy */
 	gcry_cipher_algo_info(ctx->algo, GCRYCTL_GET_BLKLEN, NULL, &(ctx->blk_len));
 	gcry_cipher_algo_info(ctx->algo, GCRYCTL_GET_KEYLEN, NULL, &(ctx->key_len));
 	ctx->key = malloc(ctx->key_len);
@@ -361,15 +365,6 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	} else {
 		memcpy(ctx->key, ctx->skeyid_e, ctx->key_len);
 	}
-
-	/* initial phase 1 iv */
-	gcry_md_open(&md_ctx, ctx->md_algo, 0);
-	gcry_md_write(md_ctx, ctx->dh_i_public, dh_getlen(ctx->dh_group));
-	gcry_md_write(md_ctx, ctx->dh_r_public, dh_getlen(ctx->dh_group));
-	gcry_md_final(md_ctx);
-	ctx->iv = malloc(ctx->blk_len);
-	memcpy(ctx->iv, gcry_md_read(md_ctx, 0), ctx->blk_len);
-	gcry_md_close(md_ctx);
 
 	/*
 	 * HASH_I = prf(SKEYID, g^x | g^y | Cookie_I | Cookie_R | SA_I | ID_I )
@@ -422,24 +417,150 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 }
 
 /*
- * Decrypts the payload during phase 1.
+ * Encrypts or decrypts the buffer buf.
+ * Buf must already be padded to blocksize of the encryption algorithm in use.
  */
-void ike_decrypt_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
+void ike_crypt_crypt(int algo, int enc, uint8_t *buf, size_t buflen,
+	uint8_t *key, size_t keylen, uint8_t *iv, size_t ivlen)
 {
-	/* XXX */
-
-//	ikp->u.payload = parse_isakmp_payload(payload, &data, &data_len, &reason);
+	gcry_cipher_hd_t crypt_ctx;
+	gcry_cipher_open(&crypt_ctx, algo, GCRY_CIPHER_MODE_CBC, 0);
+	gcry_cipher_setkey(crypt_ctx, key, keylen);
+	gcry_cipher_setiv(crypt_ctx, iv, ivlen);
+	if(!enc)
+		gcry_cipher_decrypt(crypt_ctx, buf, buflen, NULL, 0);
+	else
+		gcry_cipher_encrypt(crypt_ctx, buf, buflen, NULL, 0);
+	gcry_cipher_close(crypt_ctx);
 }
 
 /*
- * Process an IKE Aggressive Mode packet in STATE_PHASE1.
- * Brings us into STATE_PHASE2. (probably)
+ * Generic encryption/decryption routine.
+ * Handles phase 1 and phase 2.
+ */
+void ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
+{
+	/*
+	 * phase 1, first:	iv = hash(i_dh_public r_dh_public)
+	 * phase 1, rest:	iv = last_block_phase1
+	 * phase 2, first:	iv = hash(last_block_phase1 message_id)
+	 * phase 2, rest:	iv = last_block_phase2
+	 */
+
+	gcry_md_hd_t md_ctx;
+	int enc = !(ikp->flags & ISAKMP_FLAG_E);
+
+	if(ctx->state == STATE_PHASE1) {
+		/* iv0 not set means no phase 1 encrypted packets yet */
+		if(!ctx->iv0) {
+			/* initial phase 1 iv */
+			gcry_md_open(&md_ctx, ctx->md_algo, 0);
+			gcry_md_write(md_ctx, ctx->dh_i_public, dh_getlen(ctx->dh_group));
+			gcry_md_write(md_ctx, ctx->dh_r_public, dh_getlen(ctx->dh_group));
+			gcry_md_final(md_ctx);
+			ctx->iv0 = malloc(ctx->blk_len);
+			memcpy(ctx->iv0, gcry_md_read(md_ctx, 0), ctx->blk_len);
+			gcry_md_close(md_ctx);
+		}
+		uint8_t *fp;
+		size_t fp_len;
+		int reject = 0;
+		if(enc) {
+			/* flatten and encrypt payload */
+			flatten_isakmp_payload(ikp->u.payload, &fp, &fp_len,
+				ctx->blk_len);
+			ike_crypt_crypt(ctx->algo, enc, fp, fp_len,
+				ctx->key, ctx->key_len, ctx->iv0, ctx->blk_len);
+			/* swap payload for encrypted buffer */
+			free_isakmp_payload(ikp->u.payload);
+			ikp->u.enc.length = fp_len;
+			ikp->u.enc.data = malloc(ikp->u.enc.length);
+			memcpy(ikp->u.enc.data, fp, ikp->u.enc.length);
+			/* store last encrypted phase 1 block */
+			memcpy(ctx->iv0, fp + fp_len - ctx->blk_len, ctx->blk_len);
+			free(fp);
+		} else { /* dec */
+			/* copy encrypted buffer */
+			fp_len = ikp->u.enc.length;
+			fp = malloc(fp_len);
+			memcpy(fp, ikp->u.enc.data, fp_len);
+			free(ikp->u.enc.data);
+			/* store last encrypted phase 1 block */
+			uint8_t *newiv = malloc(ctx->blk_len);
+			memcpy(newiv, fp + fp_len - ctx->blk_len, ctx->blk_len);
+			/* decrypt encrypted buffer */
+			ike_crypt_crypt(ctx->algo, enc, fp, fp_len,
+				ctx->key, ctx->key_len, ctx->iv0, ctx->blk_len);
+			/* copy stored last block to iv0 */
+			memcpy(ctx->iv0, newiv, ctx->blk_len);
+			free(newiv);
+			/* swap encrypted buffer for decoded payload */
+			const uint8_t *cfp = fp;
+			ikp->u.payload = parse_isakmp_payload(
+				ikp->u.enc.type,
+				&cfp, &fp_len, &reject);
+			if(reject) {
+				fprintf(stderr, "[%s:%d]: illegal decrypted payload (%d), payload ignored\n",
+					inet_ntoa(ctx->peer_addr.sin_addr),
+					ntohs(ctx->peer_addr.sin_port),
+					reject);
+				/* XXX: need some action here, maybe go back 1 IV
+				 * and retry, or maybe just dupe-save recv()
+				 */
+			}
+			free(fp);
+		}
+#if 0
+		fprintf(stderr, "iv0:     ");
+		for(int i = 0; i < ctx->blk_len; i++) {
+			fprintf(stderr, " %02x", ctx->iv0[i]);
+		}
+		fprintf(stderr, "\n");
+#endif
+	} else { /* phase 2 */
+printf("phase 2 encryption not implemented");
+		/* XXX */
+		/* grab message id */
+		/* fetch message_iv */
+		/*  */
+		/* XXX: call enc sub from here */
+	}
+
+	/* flip the "encrypted" flag */
+	ikp->flags ^= ISAKMP_FLAG_E;
+
+#if 0
+	info_ex = block[ISAKMP_EXCHANGE_TYPE_O] == ISAKMP_EXCHANGE_INFORMATIONAL;
+
+	/* generate new phase 2 iv */
+	gcry_md_hd_t md_ctx;
+	gcry_md_open(&md_ctx, s->md_algo, 0);
+	gcry_md_write(md_ctx, s->initial_iv, s->ivlen);
+	gcry_md_write(md_ctx, block + ISAKMP_MESSAGE_ID_O, 4);
+	gcry_md_final(md_ctx);
+	if (info_ex) {
+		iv = xallocc(s->ivlen);
+		memcpy(iv, gcry_md_read(md_ctx, 0), s->ivlen);
+	} else {
+		memcpy(s->current_iv, gcry_md_read(md_ctx, 0), s->ivlen);
+		memcpy(s->current_iv_msgid, block + ISAKMP_MESSAGE_ID_O, 4);
+	}
+	gcry_md_close(md_ctx);
+#endif
+
+}
+
+/*
+ * Process the last IKE Aggressive Mode packet in phase 1, containing i_hash.
+ * Brings us to phase 2 (hopefully).
  */
 void ike_do_phase1_end(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
 	/* XXX */
 
-	/*ctx->state = STATE_PHASE1;*/
+	printf("do_phase1_end called\n");
+
+	/*ctx->state = STATE_PHASE2;*/
 }
 
 /*
@@ -521,7 +642,7 @@ void ike_process_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 	switch(ikp->exchange_type) {
 		case ISAKMP_EXCHANGE_AGGRESSIVE:
-			ike_decrypt_phase1(ctx, ikp);
+			ike_crypt(ctx, ikp);
 			ike_do_phase1_end(ctx, ikp);
 			break;
 

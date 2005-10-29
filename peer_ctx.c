@@ -16,6 +16,39 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* message_iv */
+
+message_iv * get_message_iv(uint32_t id, message_iv *head)
+{
+	message_iv *found = NULL;
+
+	for(message_iv *p = head; p && !found; p = p->next) {
+		if(p->id == id)
+			found = p;
+	}
+
+	if(!found) {
+		found = malloc(sizeof(message_iv));
+		memset(found, 0, sizeof(message_iv));
+		found->id = id;
+		found->next = head;
+		head = found;
+	}
+
+	return found;
+}
+
+void free_message_iv(message_iv *msg_iv)
+{
+	if(msg_iv->next) {
+		free_message_iv(msg_iv->next);
+		msg_iv->next = NULL;
+	}
+}
+
+
+/* peer_ctx */
+
 static peer_ctx *head = NULL;
 
 peer_ctx * get_peer_ctx(datagram *dgm, config *cfg)
@@ -28,7 +61,7 @@ peer_ctx * get_peer_ctx(datagram *dgm, config *cfg)
 	}
 
 	if(!found) {
-		found = (peer_ctx*)malloc(sizeof(peer_ctx));
+		found = malloc(sizeof(peer_ctx));
 		memset(found, 0, sizeof(peer_ctx));
 		found->peer_addr = dgm->peer_addr;
 		found->next = head;
@@ -71,7 +104,10 @@ void free_peer_ctx(peer_ctx *ctx)
 
 	FREE_CTX_MEMBER(key);
 	FREE_CTX_MEMBER(iv0);
-	FREE_CTX_MEMBER(iv);
+	if(ctx->msg_iv) {
+		free_message_iv(ctx->msg_iv);
+		ctx->msg_iv = NULL;
+	}
 
 	FREE_CTX_MEMBER(dh_group);
 	FREE_CTX_MEMBER(dh_i_public);
