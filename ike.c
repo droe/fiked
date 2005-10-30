@@ -421,32 +421,30 @@ void ike_do_phase2_xauth_begin(peer_ctx *ctx)
  */
 void ike_do_phase2_xauth(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
-	uint8_t *username = NULL;
-	uint8_t *password = NULL;
 	for(struct isakmp_attribute *a =
 		ikp->u.payload->next->u.modecfg.attributes; a; a = a->next) {
 		switch(a->type) {
 			case ISAKMP_XAUTH_ATTRIB_USER_NAME:
-				if(username)
-					free(username);
-				username = malloc(a->u.lots.length + 1);
-				memcpy(username, a->u.lots.data, a->u.lots.length);
-				username[a->u.lots.length] = '\0';
+				if(ctx->xauth_username)
+					free(ctx->xauth_username);
+				ctx->xauth_username = malloc(a->u.lots.length + 1);
+				memcpy(ctx->xauth_username, a->u.lots.data, a->u.lots.length);
+				ctx->xauth_username[a->u.lots.length] = '\0';
 				printf("[%s:%d]: Xauth username: %s\n",
 					inet_ntoa(ctx->peer_addr.sin_addr),
 					ntohs(ctx->peer_addr.sin_port),
-					username);
+					ctx->xauth_username);
 				break;
 			case ISAKMP_XAUTH_ATTRIB_USER_PASSWORD:
-				if(password)
-					free(password);
-				password = malloc(a->u.lots.length + 1);
-				memcpy(password, a->u.lots.data, a->u.lots.length);
-				password[a->u.lots.length] = '\0';
+				if(ctx->xauth_password)
+					free(ctx->xauth_password);
+				ctx->xauth_password = malloc(a->u.lots.length + 1);
+				memcpy(ctx->xauth_password, a->u.lots.data, a->u.lots.length);
+				ctx->xauth_password[a->u.lots.length] = '\0';
 				printf("[%s:%d]: Xauth password: %s\n",
 					inet_ntoa(ctx->peer_addr.sin_addr),
 					ntohs(ctx->peer_addr.sin_port),
-					password);
+					ctx->xauth_password);
 				break;
 			default:
 				printf("[%s:%d]: unhandled modecfg attr type 0x%02x, ignored\n",
@@ -574,6 +572,8 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 		case ISAKMP_IPSEC_ID_FQDN:
 		case ISAKMP_IPSEC_ID_USER_FQDN:
 		case ISAKMP_IPSEC_ID_KEY_ID:
+			if(ctx->ipsec_id)
+				free(ctx->ipsec_id);
 			ctx->ipsec_id = malloc(id->u.id.length + 1);
 			memcpy(ctx->ipsec_id, id->u.id.data, id->u.id.length);
 			ctx->ipsec_id[id->u.id.length] = '\0';
@@ -845,10 +845,11 @@ void ike_do_phase1_end(peer_ctx *ctx, struct isakmp_packet *ikp)
 			ntohs(ctx->peer_addr.sin_port));
 		return;
 	}
-
+/*
 	printf("[%s:%d]: IKE phase 1 complete\n",
 		inet_ntoa(ctx->peer_addr.sin_addr),
 		ntohs(ctx->peer_addr.sin_port));
+*/
 	ctx->state = STATE_PHASE2;
 	ike_do_phase2_xauth_begin(ctx);
 }
@@ -892,6 +893,8 @@ void ike_process_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
  * Phase 0 handler                                                           *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+/* phase 0 is actually phase 1 before the key exchange is complete */
+
 /*
  * Process an IKE packet in STATE_NEW.
  */
@@ -906,7 +909,7 @@ void ike_process_new(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 	switch(ikp->exchange_type) {
 		case ISAKMP_EXCHANGE_AGGRESSIVE:
-			printf("[%s:%d]: IKE session initiated [aggressive mode]\n",
+			printf("[%s:%d]: IKE session initiated\n",
 				inet_ntoa(ctx->peer_addr.sin_addr),
 				ntohs(ctx->peer_addr.sin_port));
 			ike_do_phase1(ctx, ikp);

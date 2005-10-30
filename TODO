@@ -1,6 +1,5 @@
 functionality:
  * implement pf rdr w/hostap (scripts)
- * copy user/pass to ctx
  * XXX
 
 correctness:
