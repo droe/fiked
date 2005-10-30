@@ -70,9 +70,12 @@ typedef struct _peer_ctx {
 	uint8_t *skeyid_a;
 	uint8_t *skeyid_e;
 
-	/* IKE: phase 1 payloads */
+	/* IKE: header fields */
 	uint8_t i_cookie[ISAKMP_COOKIE_LENGTH];
 	uint8_t r_cookie[ISAKMP_COOKIE_LENGTH];
+	uint8_t isakmp_version;
+
+	/* IKE: phase 1 payloads */
 	uint8_t *i_sa,    *i_id,    *r_id;
 	size_t   i_sa_len, i_id_len, r_id_len;
 	uint8_t *i_nonce;
@@ -87,7 +90,7 @@ void reset_peer_ctx(peer_ctx *ctx);
 void free_peer_ctx(peer_ctx *ctx);
 void destroy_peer_ctx();
 
-message_iv * get_message_iv(uint32_t id, message_iv *head);
+message_iv * get_message_iv(uint32_t id, message_iv **head);
 void free_message_iv(message_iv *msg_iv);
 
 #endif /* PEER_CTX_H */

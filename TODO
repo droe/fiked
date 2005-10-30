@@ -1,23 +1,31 @@
-basic functionality:
- * implement phase 2 crypto
- * implement xauth begin
- * implement modecfg xauth dispatcher
- * implement xauth reply
+functionality:
+ * implement XAUTH vid
+ * implement pf rdr w/hostap (scripts)
 
 correctness:
+ * test with cisco client
  * catch SIGINT to leave main loop
  * malloc() safety
  * find remaining memory leaks
 
-failure resistance:
+failure resistance / security:
  * dup-save recv() (detect resends)
  * timed context cleanup runs
+ * chroot / drop privs
 
 nice to have features:
  * timestamped logging facility w/syslog and file options
- * daemon mode (-d)
+ * password file: -p
+ * verbose log file: -l
+ * quiet: -q
+ * daemon mode: -d (implies -q)
  * add config file with ipsec_id:secret pairs
+ * pf integration (exempt from rdr) or generic --script facility
 
 legal:
+ * rename to pskxauthmitmd or similar
  * switch to GPL
+ * rewrite source header accordingly
+ * write up docs
+ * package it
  * make public

@@ -18,11 +18,11 @@
 
 /* message_iv */
 
-message_iv * get_message_iv(uint32_t id, message_iv *head)
+message_iv * get_message_iv(uint32_t id, message_iv **head)
 {
 	message_iv *found = NULL;
 
-	for(message_iv *p = head; p && !found; p = p->next) {
+	for(message_iv *p = *head; p && !found; p = p->next) {
 		if(p->id == id)
 			found = p;
 	}
@@ -31,8 +31,8 @@ message_iv * get_message_iv(uint32_t id, message_iv *head)
 		found = malloc(sizeof(message_iv));
 		memset(found, 0, sizeof(message_iv));
 		found->id = id;
-		found->next = head;
-		head = found;
+		found->next = *head;
+		*head = found;
 	}
 
 	return found;
