@@ -47,6 +47,9 @@ static inline int min(int a, int b)
 	return (a < b) ? a : b;
 }
 
+/* vendor ids */
+static const uint8_t xauth_vid[] = XAUTH_VENDOR_ID;
+
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -647,18 +650,15 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	dh_create_shared(ctx->dh_group, ctx->dh_secret, ctx->dh_i_public);
 
 	/* payload: ke */
-	p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_KE,
+	p = p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_KE,
 		ctx->dh_r_public, dh_getlen(ctx->dh_group));
-	p = p->next;
 
 	/* payload: nonce_r */
-	p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_NONCE,
+	p = p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_NONCE,
 		ctx->r_nonce, ctx->r_nonce_len);
-	p = p->next;
 
 	/* payload: id_r */
-	p->next = new_isakmp_payload(ISAKMP_PAYLOAD_ID);
-	p = p->next;
+	p = p->next = new_isakmp_payload(ISAKMP_PAYLOAD_ID);
 	p->u.id.type = ISAKMP_IPSEC_ID_IPV4_ADDR;
 	p->u.id.protocol = IPPROTO_UDP;
 	p->u.id.port = IKE_PORT;
@@ -784,9 +784,12 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	gcry_md_close(r_hash_ctx);
 
 	/* payload: hash_r */
-	p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_HASH,
+	p = p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_HASH,
 		ctx->r_hash, ctx->md_len);
-	p = p->next;
+
+	/* payload: XAUTH vendor id */
+	p = p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_VID,
+		xauth_vid, sizeof(xauth_vid));
 
 	/* send response */
 	datagram *dgm = new_datagram(0);
