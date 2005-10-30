@@ -17,7 +17,7 @@ LIBS=-lgcrypt
 
 PGM=xauth-mitm
 
-OBJS=config.o datagram.o peer_ctx.o ike.o main.o
+OBJS=config.o datagram.o peer_ctx.o results.o ike.o main.o
 
 SUBDIR=vpnc
 SUBDIR_OBJS=dh.o isakmp-pkt.o math_group.o

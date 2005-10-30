@@ -11,7 +11,6 @@ failure resistance / security:
 
 nice to have features:
  * timestamped logging
- * log file: -l (iso time, gateway addr, psk-id, psk, client addr, username, password)
  * verbose log file: -L
  * quiet: -q (don't log to stdout)
  * daemon mode: -d (implies -q)

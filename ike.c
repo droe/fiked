@@ -11,6 +11,7 @@
 
 #include "ike.h"
 #include "datagram.h"
+#include "results.h"
 #include "peer_ctx.h"
 #include "vpnc/math_group.h"
 #include "vpnc/dh.h"
@@ -462,7 +463,8 @@ void ike_do_phase2_xauth(peer_ctx *ctx, struct isakmp_packet *ikp)
 		}
 	}
 
-	/* XXX: store away username and password */
+	/* log credentials */
+	results_add(ctx);
 
 	/* give client feedback in form of an auth failed message */
 	struct isakmp_packet *r = new_isakmp_packet();

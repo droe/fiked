@@ -9,6 +9,7 @@
  * $Id$
  */
 
+#include "results.h"
 #include "datagram.h"
 #include "peer_ctx.h"
 #include "ike.h"
@@ -32,7 +33,7 @@
 char *self;
 void usage()
 {
-	fprintf(stderr, "Usage: %s -g <gateway> -s <secret>\n", self);
+	fprintf(stderr, "Usage: %s -g <gateway> -s <secret> [-l <logfile>]\n", self);
 	exit(-1);
 }
 
@@ -65,7 +66,7 @@ int main(int argc, char *argv[])
 
 	int ch;
 	config *cfg = new_config();
-	while((ch = getopt(argc, argv, "g:s:hV")) != -1) {
+	while((ch = getopt(argc, argv, "g:s:l:hV")) != -1) {
 		switch(ch) {
 		case 'g':
 			cfg->gateway = malloc(strlen(optarg));
@@ -74,6 +75,9 @@ int main(int argc, char *argv[])
 		case 's':
 			cfg->psk = malloc(strlen(optarg));
 			strcpy(cfg->psk, optarg);
+			break;
+		case 'l':
+			results_init(optarg);
 			break;
 		case 'V':
 			printf("IKE MITM for Cisco PSK+XAUTH\n");
