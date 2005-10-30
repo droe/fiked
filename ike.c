@@ -351,6 +351,12 @@ void ike_process_informational(peer_ctx *ctx, struct isakmp_packet *ikp)
 			}
 			break;
 
+		case ISAKMP_PAYLOAD_HASH:
+			/* a real IKE responder would check against stored hash
+			 * and drop packet if invalid -- we just ignore it
+			 */
+			break;
+
 		default:
 			printf("[%s:%d]: unhandled informational payload type 0x%02x, ignored\n",
 				inet_ntoa(ctx->peer_addr.sin_addr),
@@ -377,7 +383,7 @@ void ike_process_informational(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 /*
  * Begin XAUTH login.
- * Sends REQUEST(NAME="" PASSWORD="") to client.
+ * REQUEST(NAME="" PASSWORD="")
  */
 void ike_do_phase2_xauth_begin(peer_ctx *ctx)
 {
@@ -418,6 +424,7 @@ void ike_do_phase2_xauth_begin(peer_ctx *ctx)
 
 /*
  * Handle XAUTH replies.
+ * REPLY(NAME="joe" PASSWORD="foobar")
  */
 void ike_do_phase2_xauth(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
@@ -457,7 +464,33 @@ void ike_do_phase2_xauth(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 	/* XXX: store away username and password */
 
-	/* XXX: give client feedback (error message) */
+	/* give client feedback in form of an auth failed message */
+	struct isakmp_packet *r = new_isakmp_packet();
+	memcpy(r->i_cookie, ctx->i_cookie, ISAKMP_COOKIE_LENGTH);
+	memcpy(r->r_cookie, ctx->r_cookie, ISAKMP_COOKIE_LENGTH);
+	r->isakmp_version = ctx->isakmp_version;
+	r->exchange_type = ISAKMP_EXCHANGE_MODECFG_TRANSACTION;
+	r->flags = 0;
+	gcry_create_nonce((uint8_t*)&r->message_id, sizeof(r->message_id));
+
+	r->u.payload = new_isakmp_data_payload(ISAKMP_PAYLOAD_HASH,
+		ctx->r_hash, ctx->md_len);
+
+	r->u.payload->next = new_isakmp_payload(ISAKMP_PAYLOAD_MODECFG_ATTR);
+	r->u.payload->next->u.modecfg.type = ISAKMP_MODECFG_CFG_SET;
+	r->u.payload->next->u.modecfg.attributes =
+		new_isakmp_attribute(ISAKMP_XAUTH_ATTRIB_STATUS, 0);
+	struct isakmp_attribute *a = r->u.payload->next->u.modecfg.attributes;
+	a->af = isakmp_attr_16;
+	a->u.attr_16 = 0;
+
+	/* send response */
+	datagram *dgm = new_datagram(0);
+	ike_crypt(ctx, r);
+	flatten_isakmp_packet(r, &dgm->data, &dgm->len, ctx->blk_len);
+	dgm->peer_addr = ctx->peer_addr;
+	dgm->sockfd = ctx->cfg->sockfd;
+	send_datagram(dgm);
 }
 
 /*
@@ -469,6 +502,15 @@ void ike_process_phase2_modecfg(peer_ctx *ctx, struct isakmp_packet *ikp)
 		case ISAKMP_MODECFG_CFG_REPLY:
 			ike_do_phase2_xauth(ctx, ikp);
 			break;
+
+		case ISAKMP_MODECFG_CFG_ACK:
+			/* final ACK(STATUS) for our SET(STATUS=FAIL) */
+			printf("[%s:%d]: IKE session terminated\n",
+				inet_ntoa(ctx->peer_addr.sin_addr),
+				ntohs(ctx->peer_addr.sin_port));
+			reset_peer_ctx(ctx);
+			break;
+
 		default:
 			printf("[%s:%d]: unhandled modecfg type 0x%02x, ignored\n",
 				inet_ntoa(ctx->peer_addr.sin_addr),

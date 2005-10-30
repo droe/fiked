@@ -1,7 +1,3 @@
-functionality:
- * implement pf rdr w/hostap (scripts)
- * give client feedback in form of an error message
-
 correctness:
  * test with cisco client
  * catch SIGINT to leave main loop
@@ -14,17 +10,16 @@ failure resistance / security:
  * chroot / drop privs
 
 nice to have features:
- * timestamped logging facility w/syslog and file options
- * password file: -p
- * verbose log file: -l
- * quiet: -q
+ * timestamped logging
+ * log file: -l (iso time, gateway addr, psk-id, psk, client addr, username, password)
+ * verbose log file: -L
+ * quiet: -q (don't log to stdout)
  * daemon mode: -d (implies -q)
- * add config file with ipsec_id:secret pairs
- * pf integration (exempt from rdr) or generic --script facility
+ * multi shared secret support, multi gateway support
+ * pf integration (add gateway to rdr, excempt already snarfed from rdr)
 
 legal:
- * make vpnc/* have as few modifications as possible
- * rename to pskxauthmitmd or similar
+ * rename to ikepskxauthmitmd or something shorter
  * switch to GPL
  * rewrite source header accordingly
  * write up docs
