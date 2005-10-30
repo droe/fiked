@@ -18,7 +18,6 @@ nice to have features:
  * pf integration (add gateway to rdr, excempt already snarfed from rdr)
 
 legal:
- * rename to ikepskxauthmitmd or something shorter
  * switch to GPL
  * rewrite source header accordingly
  * write up docs

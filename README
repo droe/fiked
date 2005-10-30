@@ -1,10 +1,19 @@
 /*
- * IKE MITM for Cisco PSK+XAUTH.
+ * fiked - a fake IKE PSK+XAUTH daemon based on vpnc
  * Copyright (C) 2005, Daniel Roethlisberger <daniel@roe.ch>
  * 
- * All rights reserved.  This is unpublished work.  Unauthorized use,
- * distribution in source or binary form, modified or unmodified, is
- * strictly prohibited.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see http://www.gnu.org/copyleft/
  * 
  * $Id$
  */
@@ -13,46 +22,53 @@
 
 // Overview
 
-This is a proof of concept implementation of MITM on PSK+XAUTH [1].
+This is an implementation of MITM against IKE PSK+XAUTH, or more
+correctly, just a fake IKE daemon supporting just enough of the
+standards to attack the common Cisco based PSK+XAUTH VPN setups.
 
-This implementation is very limited in scope, it only works in very
-specific environments.  The only supported type of MITM is IKE in
-aggressive mode using PreShared Keys (PSK) and XAUTH.  The only
-supported algorithm suite is 3DES-CBC, MD5, DH group 2.  It does
-not support main mode, but that could be easily implemented too.
+This attack [1] is not new.  It has been known for a long time that IKE
+using PSK and XAUTH is insecure, which is also why XAUTH was not
+accepted as an IETF standard, and this is probably not the first actual
+implementation of the attack.
 
-Actually, MITM is not quite correct, because this implementation
-just stops responding to the client as soon as the XAUTH user
-credentials are received.  Full MITM could be implemented, but I
-haven't done it.
+This implementation is very limited in scope.  The only supported
+configuration is IKE aggressive mode using PreShared Keys (PSK) and
+XAUTH.  The only supported algorithm suite is 3DES-CBC, MD5, DH group 2.
+Main mode is not supported, but that could be easily implemented too.
+
+Based on this work, a full MITM attack could be implemented, but there
+seems to be little point to do so.
 
 
 
 // Attack Setup
 
-To successfully demostrate an attack on a VPN site, you must be
-able to intercept the IKE traffic between the clients and the VPN
-gateway.  Ways to achieve this include posing as a legit 802.11
-access point using hostap, transparently tapping into Ethernet
-cables at a suitable location, or ARP spoofing.  Whichever method
-you choose, you will need to redirect the IKE traffic to your box
-using your favourite firewall (eg. pf, iptables).
+To successfully demostrate an attack on a VPN site, you must be able to
+intercept the IKE traffic between the clients and the VPN gateway.  Ways
+to achieve this include posing as a legit 802.11 access point using
+hostap, transparently tapping into Ethernet cables at a suitable
+location, or ARP spoofing.  You must be able to redirect the IKE traffic
+to a machine running fiked.
 
-If you don't know how to set all this up, you probably should not
-be running xauth-mitm in the first place.  I will not answer any
-support requests of this kind.
+If you don't know how to set all it up, you probably should not be
+running fiked in the first place.
 
 
 
 // Requirements
 
- * libgcrypt from http://directory.fsf.org/security/libgcrypt.html
+Even though much of the code is based on vpnc [2], you only need
+libgcrypt [3] to build and run fiked.  If you are not running FreeBSD,
+you might need to do some minor tweaking to the source.  Feel free to
+send me patches.
 
 
 
-// Further Reading
+// References
 
 [1] http://www.cisco.com/warp/public/707/cisco-sn-20040415-grppass.shtml
+[2] http://www.unix-ag.uni-kl.de/~massar/vpnc/
+[3] http://directory.fsf.org/security/libgcrypt.html
 
 
 
