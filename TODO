@@ -1,6 +1,6 @@
 functionality:
  * implement pf rdr w/hostap (scripts)
- * XXX
+ * give client feedback in form of an error message
 
 correctness:
  * test with cisco client

@@ -720,7 +720,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	gcry_md_write(md_ctx, ctx->r_cookie, ISAKMP_COOKIE_LENGTH);
 	gcry_md_putc(md_ctx, 2);
 	gcry_md_final(md_ctx);
-	ctx->skeyid_e = xallocc(ctx->md_len);
+	ctx->skeyid_e = malloc(ctx->md_len);
 	memcpy(ctx->skeyid_e, gcry_md_read(md_ctx, 0), ctx->md_len);
 	gcry_md_close(md_ctx);
 
