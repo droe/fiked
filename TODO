@@ -14,12 +14,6 @@ nice to have features:
  * verbose log file: -L
  * quiet: -q (don't log to stdout)
  * daemon mode: -d (implies -q)
- * multi shared secret support, multi gateway support
+ * multi shared secret support, multi gateway support [from config file]
  * pf integration (add gateway to rdr, excempt already snarfed from rdr)
 
-legal:
- * switch to GPL
- * rewrite source header accordingly
- * write up docs
- * package it
- * make public
