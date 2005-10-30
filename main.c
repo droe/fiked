@@ -28,12 +28,32 @@
 
 #include <gcrypt.h>
 
-char *self;
 
+char *self;
 void usage()
 {
 	fprintf(stderr, "Usage: %s -g <gateway> -s <secret>\n", self);
 	exit(-1);
+}
+
+/*
+ * Check for duplicate datagrams.
+ * This is not too beautiful, but works.
+ */
+#define DUP_HASH_ALGO GCRY_MD_SHA1
+int duplicate(peer_ctx *ctx, datagram *dgm)
+{
+	int dup = 0;
+	size_t hash_len = gcry_md_get_algo_dlen(DUP_HASH_ALGO);
+	uint8_t *dgm_hash = malloc(hash_len);
+	gcry_md_hash_buffer(DUP_HASH_ALGO, dgm_hash, dgm->data, dgm->len);
+
+	if(ctx->last_dgm_hash) {
+		dup = !memcmp(ctx->last_dgm_hash, dgm_hash, hash_len);
+		free(ctx->last_dgm_hash);
+	}
+	ctx->last_dgm_hash = dgm_hash;
+	return dup;
 }
 
 /*
@@ -87,16 +107,18 @@ int main(int argc, char *argv[])
 	while(1) {
 		dgm = receive_datagram(cfg->sockfd);
 		ctx = get_peer_ctx(dgm, cfg);
-		ikp = parse_isakmp_packet(dgm->data, dgm->len, &reject);
-		if(reject) {
-			fprintf(stderr, "[%s:%d]: illegal ISAKMP packet (%d)\n",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port),
-				reject);
-		} else {
-			ike_process_isakmp(ctx, ikp);
+		if(!duplicate(ctx, dgm)) {
+			ikp = parse_isakmp_packet(dgm->data, dgm->len, &reject);
+			if(reject) {
+				fprintf(stderr, "[%s:%d]: illegal ISAKMP packet (%d)\n",
+					inet_ntoa(ctx->peer_addr.sin_addr),
+					ntohs(ctx->peer_addr.sin_port),
+					reject);
+			} else {
+				ike_process_isakmp(ctx, ikp);
+			}
+			free_isakmp_packet(ikp);
 		}
-		free_isakmp_packet(ikp);
 		free_datagram(dgm);
 	}
 

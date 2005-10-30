@@ -1,5 +1,7 @@
 functionality:
  * implement pf rdr w/hostap (scripts)
+ * copy user/pass to ctx
+ * XXX
 
 correctness:
  * test with cisco client
@@ -8,7 +10,6 @@ correctness:
  * find remaining memory leaks
 
 failure resistance / security:
- * dup-save recv() (detect resends)
  * support more algorithms (AES, DH group 1, SHA1)
  * timed context cleanup runs
  * chroot / drop privs
@@ -23,6 +24,7 @@ nice to have features:
  * pf integration (exempt from rdr) or generic --script facility
 
 legal:
+ * make vpnc/* have as few modifications as possible
  * rename to pskxauthmitmd or similar
  * switch to GPL
  * rewrite source header accordingly

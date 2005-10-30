@@ -34,11 +34,14 @@ typedef struct _peer_ctx {
 	/* pointer to global configuration */
 	config *cfg;
 
+	/* hash of last received datagram */
+	uint8_t *last_dgm_hash;
+
 	/* internal FSM states */
 	enum {
 		STATE_NEW,
 		STATE_PHASE1,
-		STATE_PHASE2,
+		STATE_PHASE2
 	} state;
 
 	/* the interesting stuff */

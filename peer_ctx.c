@@ -78,6 +78,7 @@ peer_ctx * get_peer_ctx(datagram *dgm, config *cfg)
 		free(ctx->x); \
 		ctx->x = NULL; \
 	}
+
 void clear_peer_ctx(peer_ctx *ctx)
 {
 	FREE_CTX_MEMBER(ipsec_id);
@@ -109,7 +110,6 @@ void clear_peer_ctx(peer_ctx *ctx)
 	FREE_CTX_MEMBER(i_hash);
 	FREE_CTX_MEMBER(r_hash);
 }
-#undef FREE_CTX_MEMBER
 
 void reset_peer_ctx(peer_ctx *ctx)
 {
@@ -132,6 +132,7 @@ void free_peer_ctx(peer_ctx *ctx)
 		free_peer_ctx(ctx->next);
 		ctx->next = NULL;
 	}
+	FREE_CTX_MEMBER(last_dgm_hash); /* only free this on free_peer_ctx */
 	clear_peer_ctx(ctx);
 	free(ctx);
 }
