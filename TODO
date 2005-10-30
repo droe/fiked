@@ -1,6 +1,5 @@
 correctness:
- * test with cisco client
- * catch SIGINT to leave main loop
+ * fix with cisco client: unity_vid, ...?
  * malloc() safety
  * find remaining memory leaks
 
@@ -15,5 +14,4 @@ nice to have features:
  * quiet: -q (don't log to stdout)
  * daemon mode: -d (implies -q)
  * multi shared secret support, multi gateway support [from config file]
- * pf integration (add gateway to rdr, excempt already snarfed from rdr)
 

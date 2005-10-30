@@ -59,6 +59,7 @@ static inline int min(int a, int b)
 
 /* vendor ids */
 static const uint8_t xauth_vid[] = XAUTH_VENDOR_ID;
+static const uint8_t unity_vid[] = UNITY_VENDOR_ID;
 
 
 
@@ -839,6 +840,10 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	/* payload: hash_r */
 	p = p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_HASH,
 		ctx->r_hash, ctx->md_len);
+
+	/* payload: Cisco Unity vendor id */
+	p = p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_VID,
+		unity_vid, sizeof(unity_vid));
 
 	/* payload: XAUTH vendor id */
 	p = p->next = new_isakmp_data_payload(ISAKMP_PAYLOAD_VID,
