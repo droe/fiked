@@ -244,7 +244,7 @@ uint8_t * phase2_hash(peer_ctx *ctx, uint32_t message_id, struct isakmp_payload 
 	/* XXX: nonce? */
 
 	if(pl) {
-		flatten_isakmp_payload(pl, &pl_flat, &pl_size, ctx->blk_len);
+		flatten_isakmp_payload(pl, &pl_flat, &pl_size, 1);
 		gcry_md_write(md_ctx, pl_flat, pl_size);
 		free(pl_flat);
 	} else {
