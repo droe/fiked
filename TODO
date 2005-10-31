@@ -1,5 +1,4 @@
 correctness:
- * fix with cisco client: unity_vid, ...?
  * malloc() safety
  * find remaining memory leaks
 

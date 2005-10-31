@@ -221,6 +221,43 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 	return 0;
 }
 
+/*
+ * Return phase 2 authentication hash for payload pl.
+ * Returned hash must be freed.
+ */
+uint8_t * phase2_hash(peer_ctx *ctx, uint32_t message_id, struct isakmp_payload *pl)
+{
+	gcry_md_hd_t md_ctx;
+	uint8_t *pl_flat;
+	size_t pl_size;
+	uint8_t *hash = malloc(ctx->md_len);
+
+	gcry_md_open(&md_ctx, ctx->md_algo, GCRY_MD_FLAG_HMAC);
+	gcry_md_setkey(md_ctx, ctx->skeyid_a, ctx->md_len);
+
+	/* XXX: only works for intel endianness */
+	gcry_md_putc(md_ctx, (message_id >> 24) & 0xFF);
+	gcry_md_putc(md_ctx, (message_id >> 16) & 0xFF);
+	gcry_md_putc(md_ctx, (message_id >> 8) & 0xFF);
+	gcry_md_putc(md_ctx, (message_id) & 0xFF);
+
+	/* XXX: nonce? */
+
+	if(pl) {
+		flatten_isakmp_payload(pl, &pl_flat, &pl_size, ctx->blk_len);
+		gcry_md_write(md_ctx, pl_flat, pl_size);
+		free(pl_flat);
+	} else {
+		gcry_md_putc(md_ctx, 0);
+	}
+
+	gcry_md_final(md_ctx);
+	memcpy(hash, gcry_md_read(md_ctx, 0), ctx->md_len);
+	gcry_md_close(md_ctx);
+
+	return hash;
+}
+
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -362,9 +399,10 @@ void ike_process_informational(peer_ctx *ctx, struct isakmp_packet *ikp)
 			}
 			break;
 
+		case ISAKMP_PAYLOAD_D:
 		case ISAKMP_PAYLOAD_HASH:
-			/* a real IKE responder would check against stored hash
-			 * and drop packet if invalid -- we just ignore it
+			/* a real IKE responder would check the hash and drop
+			 * the packet if invalid -- we just ignore it
 			 */
 			break;
 
@@ -406,8 +444,7 @@ void ike_do_phase2_xauth_begin(peer_ctx *ctx)
 	r->flags = 0;
 	gcry_create_nonce((uint8_t*)&r->message_id, sizeof(r->message_id));
 
-	r->u.payload = new_isakmp_data_payload(ISAKMP_PAYLOAD_HASH,
-		ctx->r_hash, ctx->md_len);
+	r->u.payload = new_isakmp_payload(ISAKMP_PAYLOAD_HASH);
 
 	r->u.payload->next = new_isakmp_payload(ISAKMP_PAYLOAD_MODECFG_ATTR);
 	r->u.payload->next->u.modecfg.type = ISAKMP_MODECFG_CFG_REQUEST;
@@ -426,6 +463,9 @@ void ike_do_phase2_xauth_begin(peer_ctx *ctx)
 
 	/* send response */
 	datagram *dgm = new_datagram(0);
+	r->u.payload->u.hash.length = ctx->md_len;
+	r->u.payload->u.hash.data =
+		phase2_hash(ctx, r->message_id, r->u.payload->next);
 	ike_crypt(ctx, r);
 	flatten_isakmp_packet(r, &dgm->data, &dgm->len, ctx->blk_len);
 	dgm->peer_addr = ctx->peer_addr;
@@ -485,8 +525,7 @@ void ike_do_phase2_xauth(peer_ctx *ctx, struct isakmp_packet *ikp)
 	r->flags = 0;
 	gcry_create_nonce((uint8_t*)&r->message_id, sizeof(r->message_id));
 
-	r->u.payload = new_isakmp_data_payload(ISAKMP_PAYLOAD_HASH,
-		ctx->r_hash, ctx->md_len);
+	r->u.payload = new_isakmp_payload(ISAKMP_PAYLOAD_HASH);
 
 	r->u.payload->next = new_isakmp_payload(ISAKMP_PAYLOAD_MODECFG_ATTR);
 	r->u.payload->next->u.modecfg.type = ISAKMP_MODECFG_CFG_SET;
@@ -498,6 +537,9 @@ void ike_do_phase2_xauth(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 	/* send response */
 	datagram *dgm = new_datagram(0);
+	r->u.payload->u.hash.length = ctx->md_len;
+	r->u.payload->u.hash.data =
+		phase2_hash(ctx, r->message_id, r->u.payload->next);
 	ike_crypt(ctx, r);
 	flatten_isakmp_packet(r, &dgm->data, &dgm->len, ctx->blk_len);
 	dgm->peer_addr = ctx->peer_addr;
