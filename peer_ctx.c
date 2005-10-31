@@ -27,10 +27,9 @@
 
 /* message_iv */
 
-message_iv * get_message_iv(uint32_t id, message_iv **head)
+message_iv * message_iv_get(uint32_t id, message_iv **head)
 {
 	message_iv *found = NULL;
-
 	for(message_iv *p = *head; p && !found; p = p->next) {
 		if(p->id == id)
 			found = p;
@@ -47,10 +46,10 @@ message_iv * get_message_iv(uint32_t id, message_iv **head)
 	return found;
 }
 
-void free_message_iv(message_iv *msg_iv)
+void message_iv_free(message_iv *msg_iv)
 {
 	if(msg_iv->next) {
-		free_message_iv(msg_iv->next);
+		message_iv_free(msg_iv->next);
 		msg_iv->next = NULL;
 	}
 }
@@ -58,12 +57,10 @@ void free_message_iv(message_iv *msg_iv)
 
 /* peer_ctx */
 
-static peer_ctx *head = NULL;
-
-peer_ctx * get_peer_ctx(datagram *dgm, config *cfg)
+peer_ctx * peer_ctx_get(datagram *dgm, config *cfg, peer_ctx **head)
 {
 	peer_ctx *found = NULL;
-	for(peer_ctx *p = head; p && !found; p = p->next) {
+	for(peer_ctx *p = *head; p && !found; p = p->next) {
 		if(p->peer_addr.sin_addr.s_addr == dgm->peer_addr.sin_addr.s_addr &&
 			p->peer_addr.sin_port == dgm->peer_addr.sin_port)
 			found = p;
@@ -73,10 +70,10 @@ peer_ctx * get_peer_ctx(datagram *dgm, config *cfg)
 		found = malloc(sizeof(peer_ctx));
 		memset(found, 0, sizeof(peer_ctx));
 		found->peer_addr = dgm->peer_addr;
-		found->next = head;
+		found->next = *head;
 		found->state = STATE_NEW;
 		found->cfg = cfg;
-		head = found;
+		*head = found;
 	}
 
 	return found;
@@ -88,7 +85,7 @@ peer_ctx * get_peer_ctx(datagram *dgm, config *cfg)
 		ctx->x = NULL; \
 	}
 
-void clear_peer_ctx(peer_ctx *ctx)
+void peer_ctx_clear(peer_ctx *ctx)
 {
 	FREE_CTX_MEMBER(ipsec_id);
 	FREE_CTX_MEMBER(xauth_username);
@@ -97,7 +94,7 @@ void clear_peer_ctx(peer_ctx *ctx)
 	FREE_CTX_MEMBER(key);
 	FREE_CTX_MEMBER(iv0);
 	if(ctx->msg_iv) {
-		free_message_iv(ctx->msg_iv);
+		message_iv_free(ctx->msg_iv);
 		ctx->msg_iv = NULL;
 	}
 
@@ -120,28 +117,22 @@ void clear_peer_ctx(peer_ctx *ctx)
 	FREE_CTX_MEMBER(r_hash);
 }
 
-void reset_peer_ctx(peer_ctx *ctx)
+void peer_ctx_reset(peer_ctx *ctx)
 {
-	clear_peer_ctx(ctx);
+	peer_ctx_clear(ctx);
 
 	ctx->state = STATE_NEW;
 	memset(ctx->i_cookie, 0, sizeof(ctx->i_cookie));
 	memset(ctx->r_cookie, 0, sizeof(ctx->r_cookie));
 }
 
-void destroy_peer_ctx()
-{
-	free_peer_ctx(head);
-	head = NULL;
-}
-
-void free_peer_ctx(peer_ctx *ctx)
+void peer_ctx_free(peer_ctx *ctx)
 {
 	if(ctx->next) {
-		free_peer_ctx(ctx->next);
+		peer_ctx_free(ctx->next);
 		ctx->next = NULL;
 	}
 	FREE_CTX_MEMBER(last_dgm_hash); /* only free this on free_peer_ctx */
-	clear_peer_ctx(ctx);
+	peer_ctx_clear(ctx);
 	free(ctx);
 }

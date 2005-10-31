@@ -18,27 +18,13 @@
  * $Id$
  */
 
-#ifndef DATAGRAM_H
-#define DATAGRAM_H
+#ifndef LOG_H
+#define LOG_H
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
+#include "peer_ctx.h"
 
-#define UDP_DGM_MAXSIZE	65507
+void log_init(char *filename, int quiet);
+void log_printf(peer_ctx *ctx, const char *fmt, ...);
+void log_cleanup();
 
-typedef struct _datagram {
-	size_t len;
-	uint8_t *data;
-	struct sockaddr_in peer_addr;
-	int sockfd;
-} datagram;
-
-int open_udp_socket(uint16_t port);
-
-datagram * datagram_new(size_t size);
-void datagram_free(datagram *dgm);
-datagram * datagram_recv(int sockfd);
-void datagram_send(datagram *dgm);
-
-#endif /* DATAGRAM_H */
+#endif /* LOG_H */

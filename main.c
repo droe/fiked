@@ -19,6 +19,7 @@
  */
 
 #include "results.h"
+#include "log.h"
 #include "datagram.h"
 #include "peer_ctx.h"
 #include "ike.h"
@@ -42,7 +43,14 @@
 char *self;
 void usage()
 {
-	fprintf(stderr, "Usage: %s [-hV] -g <gateway> -s <secret> [-l <logfile>]\n", self);
+	fprintf(stderr, "Usage: %s [-qhV] -g <gateway> -s <secret> [-l <file>] [-L <file>]\n", self);
+	fprintf(stderr, "\t-q\tbe quiet, don't write anything to stdout\n");
+	fprintf(stderr, "\t-h\thelp\n");
+	fprintf(stderr, "\t-V\tprint version information\n");
+	fprintf(stderr, "\t-g gw\tVPN gateway address to impersonate\n");
+	fprintf(stderr, "\t-s psk\tshared secret aka. group password, pre shared key\n");
+	fprintf(stderr, "\t-l file\tappend results to credential log file\n");
+	fprintf(stderr, "\t-L file\tverbous logging to file instead of stdout\n");
 	exit(-1);
 }
 
@@ -74,8 +82,10 @@ int main(int argc, char *argv[])
 	self = argv[0];
 
 	int ch;
-	config *cfg = new_config();
-	while((ch = getopt(argc, argv, "g:s:l:hV")) != -1) {
+	config *cfg = config_new();
+	char *logfile = NULL;
+	int quiet = 0;
+	while((ch = getopt(argc, argv, "g:s:l:L:qhV")) != -1) {
 		switch(ch) {
 		case 'g':
 			cfg->gateway = malloc(strlen(optarg));
@@ -88,11 +98,18 @@ int main(int argc, char *argv[])
 		case 'l':
 			results_init(optarg);
 			break;
+		case 'L':
+			logfile = malloc(strlen(optarg));
+			strcpy(logfile, optarg);
+			break;
 		case 'V':
 			printf("fiked - fake IKE PSK+XAUTH daemon based on vpnc\n");
 			printf("Copyright (C) 2005, Daniel Roethlisberger <daniel@roe.ch>\n");
 			printf("Licensed under the GNU General Public License, version 2 or later\n");
 			exit(0);
+		case 'q':
+			quiet = 1;
+			break;
 		case 'h':
 		case '?':
 		default:
@@ -105,40 +122,43 @@ int main(int argc, char *argv[])
 	if(!(cfg->gateway && cfg->psk))
 		usage();
 
-	printf("Using gateway=%s secret=%s\n", cfg->gateway, cfg->psk);
+	log_init(logfile, quiet);
+
+	log_printf(NULL, "Using gateway=%s secret=%s", cfg->gateway, cfg->psk);
 
 	cfg->sockfd = open_udp_socket(IKE_PORT);
-	printf("Listening on %d/udp...\n", IKE_PORT);
+	log_printf(NULL, "Listening on %d/udp...", IKE_PORT);
 
 	gcry_check_version("1.1.90");
 	gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
 	group_init();
 
-	datagram *dgm;
+	peer_ctx *peers;
 	peer_ctx *ctx;
+	datagram *dgm;
 	int reject = 0;
 	struct isakmp_packet *ikp;
 	while(1) {
-		dgm = receive_datagram(cfg->sockfd);
-		ctx = get_peer_ctx(dgm, cfg);
+		dgm = datagram_recv(cfg->sockfd);
+		ctx = peer_ctx_get(dgm, cfg, &peers);
 		if(!duplicate(ctx, dgm)) {
 			ikp = parse_isakmp_packet(dgm->data, dgm->len, &reject);
 			if(reject) {
-				fprintf(stderr, "[%s:%d]: illegal ISAKMP packet (%d)\n",
-					inet_ntoa(ctx->peer_addr.sin_addr),
-					ntohs(ctx->peer_addr.sin_port),
+				log_printf(ctx, "illegal ISAKMP packet (%d)",
 					reject);
 			} else {
 				ike_process_isakmp(ctx, ikp);
 			}
 			free_isakmp_packet(ikp);
 		}
-		free_datagram(dgm);
+		datagram_free(dgm);
 	}
 
-	destroy_peer_ctx();
-	free_config(cfg);
-	printf("Bye.\n");
+	log_printf(NULL, "Bye.");
+	results_cleanup();
+	log_cleanup();
+	peer_ctx_free(peers);
+	config_free(cfg);
 	return 0;
 }
 

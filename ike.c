@@ -21,6 +21,7 @@
 #include "ike.h"
 #include "datagram.h"
 #include "results.h"
+#include "log.h"
 #include "peer_ctx.h"
 #include "vpnc/math_group.h"
 #include "vpnc/dh.h"
@@ -130,7 +131,7 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 	case STATE_PHASE2:
 		/* fetch message_iv for this exchange */
-		msg_iv = get_message_iv(ikp->message_id, &ctx->msg_iv);
+		msg_iv = message_iv_get(ikp->message_id, &ctx->msg_iv);
 		if(!msg_iv->iv) {
 			/* generate initial phase 2 iv */
 			gcry_md_open(&md_ctx, ctx->md_algo, 0);
@@ -149,9 +150,7 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 		break;
 
 	default:
-		fprintf(stderr, "[%s:%d]: ike_crypt in illegal state %d, packet ignored\n",
-			inet_ntoa(ctx->peer_addr.sin_addr),
-			ntohs(ctx->peer_addr.sin_port),
+		log_printf(ctx, "ike_crypt in illegal state %d, packet ignored",
 			ctx->state);
 		return -1;
 		break;
@@ -200,9 +199,8 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 			ikp->u.enc.type,
 			&cfp, &fp_len, &reject);
 		if(reject) {
-			fprintf(stderr, "[%s:%d]: illegal decrypted payload (%d), packet ignored\n",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port),
+			log_printf(ctx,
+				"illegal decrypted payload (%d), packet ignored",
 				reject);
 			return reject;
 		}
@@ -296,10 +294,10 @@ int sa_transform_matches(peer_ctx* ctx, struct isakmp_payload *t)
 
 	/* do we have all required attributed? */
 	if(!(enc && hash && auth_method && group_desc)) {
-		printf("[%s:%d]: missing attribute(s): enc=%p hash=%p auth_method=%p group_desc=%p\n",
-			inet_ntoa(ctx->peer_addr.sin_addr),
-			ntohs(ctx->peer_addr.sin_port),
-			(void*)enc, (void*)hash, (void*)auth_method, (void*)group_desc);
+		log_printf(ctx,
+			"missing attribute(s): enc=%p hash=%p am=%p gd=%p",
+			(void*)enc, (void*)hash, (void*)auth_method,
+			(void*)group_desc);
 		return 0;
 	}
 
@@ -332,9 +330,7 @@ void sa_populate_from(peer_ctx* ctx, struct isakmp_payload *response, struct isa
 			break;
 	}
 	if(!p) {
-		printf("[%s:%d]: no matching algo proposal, ignoring request\n",
-			inet_ntoa(ctx->peer_addr.sin_addr),
-			ntohs(ctx->peer_addr.sin_port));
+		log_printf(ctx, "no matching algo proposal, ignoring request");
 		return;
 	}
 
@@ -376,10 +372,8 @@ void sa_populate_from(peer_ctx* ctx, struct isakmp_payload *response, struct isa
 void ike_process_informational(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
 	if(ikp->flags & ISAKMP_FLAG_E) {
-		printf("[%s:%d]: encrypted informational packet, reset state\n",
-			inet_ntoa(ctx->peer_addr.sin_addr),
-			ntohs(ctx->peer_addr.sin_port));
-		reset_peer_ctx(ctx);
+		log_printf(ctx, "encrypted informational packet, reset state");
+		peer_ctx_reset(ctx);
 		return;
 	}
 
@@ -388,18 +382,16 @@ void ike_process_informational(peer_ctx *ctx, struct isakmp_packet *ikp)
 	case ISAKMP_PAYLOAD_N:
 		switch(p->u.n.type) {
 		case ISAKMP_N_INVALID_PAYLOAD_TYPE:
-			printf("[%s:%d]: error from peer: invalid payload type, reset state\n",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port));
-				reset_peer_ctx(ctx);
+			log_printf(ctx,
+				"error from peer: invalid payload type, reset state");
+				peer_ctx_reset(ctx);
 			break;
 		case ISAKMP_N_CISCO_HEARTBEAT:
 			/* ignore */
 			break;
 		default:
-			printf("[%s:%d]: unhandled informational notification type 0x%02x, ignored\n",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port),
+			log_printf(ctx,
+				"unhandled informational notification type 0x%02x, ignored",
 				p->u.n.type);
 			break;
 		}
@@ -413,9 +405,8 @@ void ike_process_informational(peer_ctx *ctx, struct isakmp_packet *ikp)
 		break;
 
 	default:
-		printf("[%s:%d]: unhandled informational payload type 0x%02x, ignored\n",
-			inet_ntoa(ctx->peer_addr.sin_addr),
-			ntohs(ctx->peer_addr.sin_port),
+		log_printf(ctx,
+			"unhandled informational payload type 0x%02x, ignored",
 			p->type);
 		break;
 	}}
@@ -468,7 +459,7 @@ void ike_do_phase2_xauth_begin(peer_ctx *ctx)
 	a->u.lots.data = NULL;
 
 	/* send response */
-	datagram *dgm = new_datagram(0);
+	datagram *dgm = datagram_new(0);
 	r->u.payload->u.hash.length = ctx->md_len;
 	r->u.payload->u.hash.data =
 		phase2_hash(ctx, r->message_id, r->u.payload->next);
@@ -476,7 +467,7 @@ void ike_do_phase2_xauth_begin(peer_ctx *ctx)
 	flatten_isakmp_packet(r, &dgm->data, &dgm->len, ctx->blk_len);
 	dgm->peer_addr = ctx->peer_addr;
 	dgm->sockfd = ctx->cfg->sockfd;
-	send_datagram(dgm);
+	datagram_send(dgm);
 }
 
 /*
@@ -494,9 +485,7 @@ void ike_do_phase2_xauth(peer_ctx *ctx, struct isakmp_packet *ikp)
 				ctx->xauth_username = malloc(a->u.lots.length + 1);
 				memcpy(ctx->xauth_username, a->u.lots.data, a->u.lots.length);
 				ctx->xauth_username[a->u.lots.length] = '\0';
-				printf("[%s:%d]: Xauth username: %s\n",
-					inet_ntoa(ctx->peer_addr.sin_addr),
-					ntohs(ctx->peer_addr.sin_port),
+				log_printf(ctx, "Xauth username: %s",
 					ctx->xauth_username);
 				break;
 			case ISAKMP_XAUTH_ATTRIB_USER_PASSWORD:
@@ -505,24 +494,20 @@ void ike_do_phase2_xauth(peer_ctx *ctx, struct isakmp_packet *ikp)
 				ctx->xauth_password = malloc(a->u.lots.length + 1);
 				memcpy(ctx->xauth_password, a->u.lots.data, a->u.lots.length);
 				ctx->xauth_password[a->u.lots.length] = '\0';
-				printf("[%s:%d]: Xauth password: %s\n",
-					inet_ntoa(ctx->peer_addr.sin_addr),
-					ntohs(ctx->peer_addr.sin_port),
+				log_printf(ctx, "Xauth password: %s",
 					ctx->xauth_password);
 				break;
 			case ISAKMP_XAUTH_ATTRIB_STATUS:
 				if(a->u.attr_16 == 0) {
-					printf("[%s:%d]: IKE session aborted by peer\n",
-						inet_ntoa(ctx->peer_addr.sin_addr),
-						ntohs(ctx->peer_addr.sin_port));
-					reset_peer_ctx(ctx);
+					log_printf(ctx,
+						"IKE session aborted by peer");
+					peer_ctx_reset(ctx);
 					return;
 				}
 				break;
 			default:
-				printf("[%s:%d]: unhandled modecfg attr type 0x%02x, ignored\n",
-					inet_ntoa(ctx->peer_addr.sin_addr),
-					ntohs(ctx->peer_addr.sin_port),
+				log_printf(ctx,
+					"unhandled modecfg attr type 0x%02x, ignored",
 					a->type);
 				break;
 		}
@@ -551,7 +536,7 @@ void ike_do_phase2_xauth(peer_ctx *ctx, struct isakmp_packet *ikp)
 	a->u.attr_16 = 0;
 
 	/* send response */
-	datagram *dgm = new_datagram(0);
+	datagram *dgm = datagram_new(0);
 	r->u.payload->u.hash.length = ctx->md_len;
 	r->u.payload->u.hash.data =
 		phase2_hash(ctx, r->message_id, r->u.payload->next);
@@ -559,7 +544,7 @@ void ike_do_phase2_xauth(peer_ctx *ctx, struct isakmp_packet *ikp)
 	flatten_isakmp_packet(r, &dgm->data, &dgm->len, ctx->blk_len);
 	dgm->peer_addr = ctx->peer_addr;
 	dgm->sockfd = ctx->cfg->sockfd;
-	send_datagram(dgm);
+	datagram_send(dgm);
 }
 
 /*
@@ -574,16 +559,12 @@ void ike_process_phase2_modecfg(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 		case ISAKMP_MODECFG_CFG_ACK:
 			/* final ACK(STATUS) for our SET(STATUS=FAIL) */
-			printf("[%s:%d]: IKE session terminated\n",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port));
-			reset_peer_ctx(ctx);
+			log_printf(ctx, "IKE session terminated");
+			peer_ctx_reset(ctx);
 			break;
 
 		default:
-			printf("[%s:%d]: unhandled modecfg type 0x%02x, ignored\n",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port),
+			log_printf(ctx, "unhandled modecfg type 0x%02x, ignored",
 				ikp->u.payload->next->u.modecfg.type);
 			break;
 	}
@@ -595,10 +576,9 @@ void ike_process_phase2_modecfg(peer_ctx *ctx, struct isakmp_packet *ikp)
  */
 void ike_process_phase2(peer_ctx *ctx, struct isakmp_packet *ikp) {
 	if(!(ikp->flags & ISAKMP_FLAG_E)) {
-		printf("[%s:%d]: unencrypted packet in STATE_PHASE2, reset state\n",
-			inet_ntoa(ctx->peer_addr.sin_addr),
-			ntohs(ctx->peer_addr.sin_port));
-		reset_peer_ctx(ctx);
+		log_printf(ctx,
+			"unencrypted packet in STATE_PHASE2, reset state");
+		peer_ctx_reset(ctx);
 		ike_process_new(ctx, ikp);
 		return;
 	}
@@ -615,9 +595,8 @@ void ike_process_phase2(peer_ctx *ctx, struct isakmp_packet *ikp) {
 			break;
 
 		default:
-			printf("[%s:%d]: unhandled exchange type 0x%02x in STATE_PHASE1, ignored\n",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port),
+			log_printf(ctx,
+				"unhandled exchange type 0x%02x in STATE_PHASE1, ignored",
 				ikp->exchange_type);
 			break;
 	}
@@ -662,18 +641,16 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 			break;
 
 		default:
-			printf("[%s:%d]: unhandled payload type 0x%02x, ignored\n",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port),
+			log_printf(ctx,
+				"unhandled payload type 0x%02x, ignored",
 				p->type);
 			break;
 	}}
 
 	/* do we have all payloads? */
 	if(!(sa && ke && nonce && id)) {
-		printf("[%s:%d]: missing payload(s): sa=%p ke=%p nonce=%p id=%p, ignored\n",
-			inet_ntoa(ctx->peer_addr.sin_addr),
-			ntohs(ctx->peer_addr.sin_port),
+		log_printf(ctx,
+			"missing payload(s): sa=%p ke=%p nonce=%p id=%p, ignored",
 			(void*)sa, (void*)ke, (void*)nonce, (void*)id);
 		return;
 	}
@@ -688,16 +665,13 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 			ctx->ipsec_id = malloc(id->u.id.length + 1);
 			memcpy(ctx->ipsec_id, id->u.id.data, id->u.id.length);
 			ctx->ipsec_id[id->u.id.length] = '\0';
-			printf("[%s:%d]: IPSec ID: %s\n",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port),
+			log_printf(ctx, "IPSec ID: %s",
 				ctx->ipsec_id);
 			break;
 
 		default:
-			printf("[%s:%d]: binary ID type %d, processing packet anyway\n",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port),
+			log_printf(ctx,
+				"IPSec ID type %d is binary, processing packet anyway",
 				id->u.id.type);
 			break;
 	}
@@ -907,11 +881,11 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 		xauth_vid, sizeof(xauth_vid));
 
 	/* send response */
-	datagram *dgm = new_datagram(0);
+	datagram *dgm = datagram_new(0);
 	flatten_isakmp_packet(r, &dgm->data, &dgm->len, ctx->blk_len); /* 8 */
 	dgm->peer_addr = ctx->peer_addr;
 	dgm->sockfd = ctx->cfg->sockfd;
-	send_datagram(dgm);
+	datagram_send(dgm);
 
 	ctx->state = STATE_PHASE1;
 }
@@ -936,35 +910,27 @@ void ike_do_phase1_end(peer_ctx *ctx, struct isakmp_packet *ikp)
 			break;
 
 		default:
-			printf("[%s:%d]: unhandled payload type 0x%02x, ignored\n",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port),
+			log_printf(ctx,
+				"unhandled payload type 0x%02x, ignored",
 				p->type);
 			break;
 	}}
 
 	/* do we have all payloads? */
 	if(!h) {
-		printf("[%s:%d]: missing payload: h=%p, ignored\n",
-			inet_ntoa(ctx->peer_addr.sin_addr),
-			ntohs(ctx->peer_addr.sin_port),
-			(void*)h);
+		log_printf(ctx, "missing payload: h=%p, ignored", (void*)h);
 		return;
 	}
 
 	/* verify hash */
 	if(h->u.hash.length != ctx->md_len ||
 		memcmp(h->u.hash.data, ctx->i_hash, ctx->md_len)) {
-		printf("[%s:%d]: IKE phase 1 auth failed (i_hash mismatch)\n",
-			inet_ntoa(ctx->peer_addr.sin_addr),
-			ntohs(ctx->peer_addr.sin_port));
+		log_printf(ctx, "IKE phase 1 auth failed (i_hash mismatch)");
 		return;
 	}
-/*
-	printf("[%s:%d]: IKE phase 1 complete\n",
-		inet_ntoa(ctx->peer_addr.sin_addr),
-		ntohs(ctx->peer_addr.sin_port));
-*/
+
+	log_printf(ctx, "IKE phase 1 complete, entering phase 2");
+
 	ctx->state = STATE_PHASE2;
 	ike_do_phase2_xauth_begin(ctx);
 }
@@ -975,10 +941,8 @@ void ike_do_phase1_end(peer_ctx *ctx, struct isakmp_packet *ikp)
 void ike_process_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
 	if(!(ikp->flags & ISAKMP_FLAG_E)) {
-		printf("[%s:%d]: unencrypted packet in STATE_PHASE1, reset state\n",
-			inet_ntoa(ctx->peer_addr.sin_addr),
-			ntohs(ctx->peer_addr.sin_port));
-		reset_peer_ctx(ctx);
+		log_printf(ctx, "unencrypted packet in STATE_PHASE1, reset state");
+		peer_ctx_reset(ctx);
 		ike_process_new(ctx, ikp);
 		return;
 	}
@@ -994,9 +958,8 @@ void ike_process_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 			break;
 
 		default:
-			printf("[%s:%d]: unhandled exchange type 0x%02x in STATE_PHASE1, ignored\n",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port),
+			log_printf(ctx,
+				"unhandled exchange type 0x%02x in STATE_PHASE1, ignored",
 				ikp->exchange_type);
 			break;
 	}
@@ -1016,17 +979,13 @@ void ike_process_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 void ike_process_new(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
 	if(ikp->flags & ISAKMP_FLAG_E) {
-		printf("[%s:%d]: encrypted packet in STATE_NEW, ignored\n",
-			inet_ntoa(ctx->peer_addr.sin_addr),
-			ntohs(ctx->peer_addr.sin_port));
+		log_printf(ctx, "encrypted packet in STATE_NEW, ignored");
 		return;
 	}
 
 	switch(ikp->exchange_type) {
 		case ISAKMP_EXCHANGE_AGGRESSIVE:
-			printf("[%s:%d]: IKE session initiated\n",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port));
+			log_printf(ctx, "IKE session initiated");
 			ike_do_phase1(ctx, ikp);
 			break;
 
@@ -1035,9 +994,8 @@ void ike_process_new(peer_ctx *ctx, struct isakmp_packet *ikp)
 			break;
 
 		default:
-			printf("[%s:%d]: unhandled exchange type 0x%02x in STATE_NEW, ignored\n",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port),
+			log_printf(ctx,
+				"unhandled exchange type 0x%02x in STATE_NEW, ignored",
 				ikp->exchange_type);
 			break;
 	}
@@ -1071,10 +1029,8 @@ void ike_process_isakmp(peer_ctx *ctx, struct isakmp_packet *ikp)
 			break;
 
 		default:
-			printf("[%s:%d]: unhandled state, reset state\n",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port));
-			reset_peer_ctx(ctx);
+			log_printf(ctx, "unhandled state, reset state");
+			peer_ctx_reset(ctx);
 			ike_process_new(ctx, ikp);
 			break;
 	}

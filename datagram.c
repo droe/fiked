@@ -28,27 +28,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-datagram * new_datagram(size_t size)
-{
-	if(size == 0)
-		size = UDP_DGM_MAXSIZE;
-	datagram *dgm = (datagram*)malloc(sizeof(datagram));
-	memset(dgm, 0, sizeof(datagram));
-	dgm->len = size;
-	dgm->data = (uint8_t*)malloc(dgm->len);
-	memset(dgm->data, 0, sizeof(dgm->len));
-	return dgm;
-}
-
-void free_datagram(datagram *dgm)
-{
-	if(dgm) {
-		if(dgm->data)
-			free(dgm->data);
-		free(dgm);
-	}
-}
-
 /*
  * Open a UDP socket on the given port.
  * Will quit on errors.
@@ -77,11 +56,39 @@ int open_udp_socket(uint16_t port)
 }
 
 /*
+ * Create a new datagram instance of given size.
+ * If size is 0, make it as large as supported by UDP.
+ */
+datagram * datagram_new(size_t size)
+{
+	if(size == 0)
+		size = UDP_DGM_MAXSIZE;
+	datagram *dgm = (datagram*)malloc(sizeof(datagram));
+	memset(dgm, 0, sizeof(datagram));
+	dgm->len = size;
+	dgm->data = (uint8_t*)malloc(dgm->len);
+	memset(dgm->data, 0, sizeof(dgm->len));
+	return dgm;
+}
+
+/*
+ * Free a datagram instance.
+ */
+void datagram_free(datagram *dgm)
+{
+	if(dgm) {
+		if(dgm->data)
+			free(dgm->data);
+		free(dgm);
+	}
+}
+
+/*
  * Receive next incoming UDP datagram on socket s.
  * Blocks until a datagram is received.
  * Will quit on errors.
  */
-datagram * receive_datagram(int sockfd)
+datagram * datagram_recv(int sockfd)
 {
 	char buf[UDP_DGM_MAXSIZE];
 	struct sockaddr_in sa;
@@ -94,16 +101,10 @@ datagram * receive_datagram(int sockfd)
 		exit(-1);
 	}
 
-	datagram *dgm = new_datagram(ret);
+	datagram *dgm = datagram_new(ret);
 	memcpy(dgm->data, buf, dgm->len);
 	dgm->peer_addr = sa;
 	dgm->sockfd = sockfd;
-
-/*
-	fprintf(stderr, "LOG: recv from %s:%d\n",
-		inet_ntoa(dgm->peer_addr.sin_addr),
-		ntohs(dgm->peer_addr.sin_port));
-*/
 
 	return dgm;
 }
@@ -111,7 +112,7 @@ datagram * receive_datagram(int sockfd)
 /*
  * Send a UDP datagram onto socket s.
  */
-void send_datagram(datagram *dgm)
+void datagram_send(datagram *dgm)
 {
 	int ret = sendto(dgm->sockfd, dgm->data, dgm->len, 0,
 		(struct sockaddr*)&dgm->peer_addr, sizeof(dgm->peer_addr));

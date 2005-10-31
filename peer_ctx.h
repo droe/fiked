@@ -97,12 +97,11 @@ typedef struct _peer_ctx {
 	uint8_t *r_hash;
 } peer_ctx;
 
-peer_ctx * get_peer_ctx(datagram *dgm, config *cfg); /* XXX: non-singular */
-void reset_peer_ctx(peer_ctx *ctx);
-void free_peer_ctx(peer_ctx *ctx);
-void destroy_peer_ctx();
+peer_ctx * peer_ctx_get(datagram *dgm, config *cfg, peer_ctx **head);
+void peer_ctx_reset(peer_ctx *ctx);
+void peer_ctx_free(peer_ctx *ctx);
 
-message_iv * get_message_iv(uint32_t id, message_iv **head);
-void free_message_iv(message_iv *msg_iv);
+message_iv * message_iv_get(uint32_t id, message_iv **head);
+void message_iv_free(message_iv *msg_iv);
 
 #endif /* PEER_CTX_H */

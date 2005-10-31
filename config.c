@@ -22,7 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-config * new_config()
+config * config_new()
 {
 	config *cfg = malloc(sizeof(config));
 	memset(cfg, 0, sizeof(config));
@@ -34,7 +34,7 @@ config * new_config()
 		free(cfg->x); \
 		cfg->x = NULL; \
 	}
-void free_config(config *cfg)
+void config_free(config *cfg)
 {
 	FREE_CFG_MEMBER(gateway);
 	FREE_CFG_MEMBER(psk);

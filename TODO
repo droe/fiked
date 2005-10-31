@@ -1,13 +1,11 @@
+ * catch SIGINT to shut down cleanly
+
 failure resistance / security:
  * support more algorithms (AES, DH group 1, SHA1)
  * timed context cleanup runs
  * malloc() -> xmalloc() xfree()
- * chroot / drop privs
 
 nice to have features:
- * timestamped logging
- * verbose log file: -L
- * quiet: -q (don't log to stdout)
  * daemon mode: -d (implies -q)
 
 added sugar:

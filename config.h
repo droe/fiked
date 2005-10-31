@@ -27,7 +27,7 @@ typedef struct _config {
 	char *psk;	/* pre-shared key */
 } config;
 
-config * new_config();
-void free_config(config *cfg);
+config * config_new();
+void config_free(config *cfg);
 
 #endif /* CONFIG_H */
