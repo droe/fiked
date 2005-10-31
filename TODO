@@ -1,10 +1,7 @@
-correctness:
- * malloc() safety
- * find remaining memory leaks
-
 failure resistance / security:
  * support more algorithms (AES, DH group 1, SHA1)
  * timed context cleanup runs
+ * malloc() safety
  * chroot / drop privs
 
 nice to have features:
@@ -12,5 +9,7 @@ nice to have features:
  * verbose log file: -L
  * quiet: -q (don't log to stdout)
  * daemon mode: -d (implies -q)
+
+added sugar:
  * multi shared secret support, multi gateway support [from config file]
 

@@ -385,33 +385,39 @@ void ike_process_informational(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 	for(struct isakmp_payload *p = ikp->u.payload; p; p = p->next) {
 	switch(p->type) {
-		case ISAKMP_PAYLOAD_N:
-			if(p->u.n.type == ISAKMP_N_INVALID_PAYLOAD_TYPE) {
-				printf("[%s:%d]: error from peer: invalid payload type, reset state\n",
-					inet_ntoa(ctx->peer_addr.sin_addr),
-					ntohs(ctx->peer_addr.sin_port));
-					reset_peer_ctx(ctx);
-			} else {
-				printf("[%s:%d]: unhandled informational notification type 0x%02x, ignored\n",
-					inet_ntoa(ctx->peer_addr.sin_addr),
-					ntohs(ctx->peer_addr.sin_port),
-					p->u.n.type);
-			}
+	case ISAKMP_PAYLOAD_N:
+		switch(p->u.n.type) {
+		case ISAKMP_N_INVALID_PAYLOAD_TYPE:
+			printf("[%s:%d]: error from peer: invalid payload type, reset state\n",
+				inet_ntoa(ctx->peer_addr.sin_addr),
+				ntohs(ctx->peer_addr.sin_port));
+				reset_peer_ctx(ctx);
 			break;
-
-		case ISAKMP_PAYLOAD_D:
-		case ISAKMP_PAYLOAD_HASH:
-			/* a real IKE responder would check the hash and drop
-			 * the packet if invalid -- we just ignore it
-			 */
+		case ISAKMP_N_CISCO_HEARTBEAT:
+			/* ignore */
 			break;
-
 		default:
-			printf("[%s:%d]: unhandled informational payload type 0x%02x, ignored\n",
+			printf("[%s:%d]: unhandled informational notification type 0x%02x, ignored\n",
 				inet_ntoa(ctx->peer_addr.sin_addr),
 				ntohs(ctx->peer_addr.sin_port),
-				p->type);
+				p->u.n.type);
 			break;
+		}
+		break;
+
+	case ISAKMP_PAYLOAD_D:
+	case ISAKMP_PAYLOAD_HASH:
+		/* a real IKE responder would check the hash and drop
+		 * the packet if invalid -- we just ignore it
+		 */
+		break;
+
+	default:
+		printf("[%s:%d]: unhandled informational payload type 0x%02x, ignored\n",
+			inet_ntoa(ctx->peer_addr.sin_addr),
+			ntohs(ctx->peer_addr.sin_port),
+			p->type);
+		break;
 	}}
 }
 
@@ -503,6 +509,15 @@ void ike_do_phase2_xauth(peer_ctx *ctx, struct isakmp_packet *ikp)
 					inet_ntoa(ctx->peer_addr.sin_addr),
 					ntohs(ctx->peer_addr.sin_port),
 					ctx->xauth_password);
+				break;
+			case ISAKMP_XAUTH_ATTRIB_STATUS:
+				if(a->u.attr_16 == 0) {
+					printf("[%s:%d]: IKE session aborted by peer\n",
+						inet_ntoa(ctx->peer_addr.sin_addr),
+						ntohs(ctx->peer_addr.sin_port));
+					reset_peer_ctx(ctx);
+					return;
+				}
 				break;
 			default:
 				printf("[%s:%d]: unhandled modecfg attr type 0x%02x, ignored\n",
