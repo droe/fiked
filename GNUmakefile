@@ -50,10 +50,18 @@ main.o: main.c $(SUBDIR)/isakmp.h $(SUBDIR)/isakmp-pkt.h datagram.h peer_ctx.h i
 %.o: %.c %.h
 	$(CC) $(CFLAGS) $(CSTD) $(COPTS) -c -o $@ $<
 
+package: clean
+	version=`cat VERSION` && \
+	mkdir $(PGM)-$$version && \
+	cp `find . -type f | grep -v svn | grep -v captures` $(PGM)-$$version/ && \
+	tar cvfy $(PGM)-$$version.tar.bz2 $(PGM)-$$version && \
+	rm -r $(PGM)-$$version
+
 clean:
-	rm -rf *.o *.core $(PGM)
+	version=`cat VERSION` && \
+	rm -rf *.o *.core *.log $(PGM)-$$version.tar.bz2 $(PGM)
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" CSTD="$(CSTD)" \
 		COPTS="$(COPTS)" LDOPTS="$(LDOPTS)" LIBS="$(LIBS)" \
 		$(MAKE) -C $(SUBDIR) clean
 
-.PHONY: all clean subdirs
+.PHONY: all package clean subdirs
