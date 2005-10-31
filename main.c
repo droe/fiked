@@ -43,7 +43,8 @@
 char *self;
 void usage()
 {
-	fprintf(stderr, "Usage: %s [-qhV] -g <gateway> -s <secret> [-l <file>] [-L <file>]\n", self);
+	fprintf(stderr, "Usage: %s [-dqhV] -g <gateway> -s <secret> [-l <file>] [-L <file>]\n", self);
+	fprintf(stderr, "\t-d\tdetach from tty and run as a daemon (implies -q)\n");
 	fprintf(stderr, "\t-q\tbe quiet, don't write anything to stdout\n");
 	fprintf(stderr, "\t-h\thelp\n");
 	fprintf(stderr, "\t-V\tprint version information\n");
@@ -74,6 +75,9 @@ int duplicate(peer_ctx *ctx, datagram *dgm)
 	return dup;
 }
 
+/* main loop will run as long as this is true */
+static int run = 1;
+
 /*
  * Option processing and main loop.
  */
@@ -84,8 +88,9 @@ int main(int argc, char *argv[])
 	int ch;
 	config *cfg = config_new();
 	char *logfile = NULL;
-	int quiet = 0;
-	while((ch = getopt(argc, argv, "g:s:l:L:qhV")) != -1) {
+	int opt_quiet = 0;
+	int opt_daemon = 0;
+	while((ch = getopt(argc, argv, "g:s:l:L:dqhV")) != -1) {
 		switch(ch) {
 		case 'g':
 			cfg->gateway = malloc(strlen(optarg));
@@ -102,14 +107,18 @@ int main(int argc, char *argv[])
 			logfile = malloc(strlen(optarg));
 			strcpy(logfile, optarg);
 			break;
+		case 'd':
+			opt_quiet = 1;
+			opt_daemon = 1;
+			break;
+		case 'q':
+			opt_quiet = 1;
+			break;
 		case 'V':
 			printf("fiked - fake IKE PSK+XAUTH daemon based on vpnc\n");
 			printf("Copyright (C) 2005, Daniel Roethlisberger <daniel@roe.ch>\n");
 			printf("Licensed under the GNU General Public License, version 2 or later\n");
 			exit(0);
-		case 'q':
-			quiet = 1;
-			break;
 		case 'h':
 		case '?':
 		default:
@@ -122,20 +131,22 @@ int main(int argc, char *argv[])
 	if(!(cfg->gateway && cfg->psk))
 		usage();
 
-	log_init(logfile, quiet);
-
-	log_printf(NULL, "Using gateway=%s secret=%s", cfg->gateway, cfg->psk);
-
-	cfg->sockfd = open_udp_socket(IKE_PORT);
-	log_printf(NULL, "Listening on %d/udp...", IKE_PORT);
+	log_init(logfile, opt_quiet);
 
 	gcry_check_version("1.1.90");
 	gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
 	group_init();
 
-	peer_ctx *peers;
-	peer_ctx *ctx;
-	datagram *dgm;
+	cfg->sockfd = open_udp_socket(IKE_PORT);
+
+	if(opt_daemon)
+		daemon(0, 0);
+
+	log_printf(NULL, "Listening on %d/udp...", IKE_PORT);
+
+	peer_ctx *peers = NULL;
+	peer_ctx *ctx = NULL;
+	datagram *dgm = NULL;
 	int reject = 0;
 	struct isakmp_packet *ikp;
 	while(1) {

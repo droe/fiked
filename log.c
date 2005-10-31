@@ -38,13 +38,13 @@ void log_init(char *filename, int quiet)
 	log_cleanup();
 	if(filename) {
 		file = fopen(filename, "a");
+		if(!file) {
+			fprintf(stderr, "FATAL: cannot open file %s: %s\n", filename,
+				strerror(errno));
+			exit(-1);
+		}
 	} else {
 		file = quiet ? NULL : stdout;
-	}
-	if(!file) {
-		fprintf(stderr, "FATAL: cannot open file %s: %s\n", filename,
-			strerror(errno));
-		exit(-1);
 	}
 }
 
