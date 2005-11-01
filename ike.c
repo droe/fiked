@@ -20,6 +20,7 @@
 
 #include "ike.h"
 #include "datagram.h"
+#include "send_dgm.h"
 #include "results.h"
 #include "log.h"
 #include "peer_ctx.h"
@@ -535,8 +536,7 @@ void ike_do_phase2_xauth_begin(peer_ctx *ctx)
 	ike_crypt(ctx, r);
 	flatten_isakmp_packet(r, &dgm->data, &dgm->len, ctx->blk_len);
 	dgm->peer_addr = ctx->peer_addr;
-	dgm->sockfd = ctx->cfg->sockfd;
-	datagram_send(dgm);
+	send_datagram(ctx, dgm);
 }
 
 /*
@@ -612,8 +612,7 @@ void ike_do_phase2_xauth(peer_ctx *ctx, struct isakmp_packet *ikp)
 	ike_crypt(ctx, r);
 	flatten_isakmp_packet(r, &dgm->data, &dgm->len, ctx->blk_len);
 	dgm->peer_addr = ctx->peer_addr;
-	dgm->sockfd = ctx->cfg->sockfd;
-	datagram_send(dgm);
+	send_datagram(ctx, dgm);
 }
 
 /*
@@ -948,8 +947,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	datagram *dgm = datagram_new(0);
 	flatten_isakmp_packet(r, &dgm->data, &dgm->len, ctx->blk_len); /* 8 */
 	dgm->peer_addr = ctx->peer_addr;
-	dgm->sockfd = ctx->cfg->sockfd;
-	datagram_send(dgm);
+	send_datagram(ctx, dgm);
 
 	ctx->state = STATE_PHASE1;
 }

@@ -18,32 +18,12 @@
  * $Id$
  */
 
-#include "config.h"
-#include <stdlib.h>
-#include <string.h>
+#ifndef SEND_DGM_H
+#define SEND_DGM_H
 
-config * config_new()
-{
-	config *cfg = malloc(sizeof(config));
-	memset(cfg, 0, sizeof(config));
-	return cfg;
-}
+#include "peer_ctx.h"
+#include "datagram.h"
 
-#define FREE_CFG_MEMBER(x) \
-	if(cfg->x) { \
-		free(cfg->x); \
-		cfg->x = NULL; \
-	}
-void config_free(config *cfg)
-{
-	if(cfg->us) {
-		udp_socket_free(cfg->us);
-		cfg->us = NULL;
-	}
+void send_datagram(peer_ctx *ctx, datagram *dgm);
 
-	FREE_CFG_MEMBER(gateway);
-	FREE_CFG_MEMBER(psk);
-
-	free(cfg);
-}
-#undef FREE_CFG_MEMBER
+#endif /* SEND_DGM_H */

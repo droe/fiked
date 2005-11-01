@@ -42,7 +42,8 @@
 char *self;
 void usage()
 {
-	fprintf(stderr, "Usage: %s [-dqhV] -g <gateway> -s <secret> [-l <file>] [-L <file>]\n", self);
+	fprintf(stderr, "Usage: %s [-rdqhV] -g <gateway> -s <secret> [-l <file>] [-L <file>]\n", self);
+	fprintf(stderr, "\t-r\tuse raw socket: forge source address to match <gateway>\n");
 	fprintf(stderr, "\t-d\tdetach from tty and run as a daemon (implies -q)\n");
 	fprintf(stderr, "\t-q\tbe quiet, don't write anything to stdout\n");
 	fprintf(stderr, "\t-h\thelp\n");
@@ -87,7 +88,7 @@ int main(int argc, char *argv[])
 	char *logfile = NULL;
 	int opt_quiet = 0;
 	int opt_daemon = 0;
-	while((ch = getopt(argc, argv, "g:s:l:L:dqhV")) != -1) {
+	while((ch = getopt(argc, argv, "g:s:l:L:drqhV")) != -1) {
 		switch(ch) {
 		case 'g':
 			cfg->gateway = malloc(strlen(optarg));
@@ -107,6 +108,9 @@ int main(int argc, char *argv[])
 		case 'd':
 			opt_quiet = 1;
 			opt_daemon = 1;
+			break;
+		case 'r':
+			cfg->opt_raw = 1;
 			break;
 		case 'q':
 			opt_quiet = 1;
@@ -134,12 +138,10 @@ int main(int argc, char *argv[])
 	gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
 	group_init();
 
-	cfg->sockfd = open_udp_socket(IKE_PORT);
+	cfg->us = udp_socket_new(IKE_PORT);
 
 	if(opt_daemon)
 		daemon(0, 0);
-
-	log_printf(NULL, "Listening on %d/udp...", IKE_PORT);
 
 	peer_ctx *peers = NULL;
 	peer_ctx *ctx = NULL;
@@ -147,7 +149,7 @@ int main(int argc, char *argv[])
 	int reject = 0;
 	struct isakmp_packet *ikp;
 	while(1) {
-		dgm = datagram_recv(cfg->sockfd);
+		dgm = udp_socket_recv(cfg->us);
 		ctx = peer_ctx_get(dgm, cfg, &peers);
 		if(!duplicate(ctx, dgm)) {
 			ikp = parse_isakmp_packet(dgm->data, dgm->len, &reject);

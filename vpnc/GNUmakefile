@@ -18,8 +18,8 @@
 
 # inherit from parent
 CC?=gcc
-CFLAGS?=-g -Wall -pedantic-errors
-LDFLAGS?=-g -Wall -pedantic-errors
+CFLAGS?=-g -Wall -pedantic
+LDFLAGS?=-g -Wall -pedantic
 CSTD?=-std=c99
 COPTS?=-I/usr/local/include
 LDOPTS?=-L/usr/local/lib

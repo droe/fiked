@@ -23,37 +23,11 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-/*
- * Open a UDP socket on the given port.
- * Will quit on errors.
- */
-int open_udp_socket(uint16_t port)
-{
-	int s = socket(PF_INET, SOCK_DGRAM, 0);
-	if(s < 0) {
-		fprintf(stderr, "FATAL: socket() returned %d: %s (%d)\n",
-			s, strerror(errno), errno);
-		exit(-1);
-	}
-
-	struct sockaddr_in sa;
-	sa.sin_family = AF_INET;
-	sa.sin_port = htons(port);
-	sa.sin_addr.s_addr = htonl(INADDR_ANY);
-	int ret = bind(s, (struct sockaddr *)&sa, sizeof(sa));
-	if(ret < 0) {
-		fprintf(stderr, "FATAL: bind(%d/udp) returned %d: %s (%d)\n",
-			port, ret, strerror(errno), errno);
-		exit(-1);
-	}
-
-	return s;
-}
 
 /*
  * Create a new datagram instance of given size.
@@ -83,28 +57,69 @@ void datagram_free(datagram *dgm)
 	}
 }
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/*
+ * Open a UDP socket on the given port.
+ * Will quit on errors.
+ */
+udp_socket * udp_socket_new(uint16_t port)
+{
+	udp_socket *s = malloc(sizeof(udp_socket));
+	s->port = port;
+	s->fd = socket(PF_INET, SOCK_DGRAM, 0);
+	if(s->fd < 0) {
+		fprintf(stderr, "FATAL: socket() returned %d: %s (%d)\n",
+			s->fd, strerror(errno), errno);
+		exit(-1);
+	}
+
+	struct sockaddr_in sa;
+	sa.sin_family = AF_INET;
+	sa.sin_port = htons(s->port);
+	sa.sin_addr.s_addr = htonl(INADDR_ANY);
+	int ret = bind(s->fd, (struct sockaddr *)&sa, sizeof(sa));
+	if(ret < 0) {
+		fprintf(stderr, "FATAL: bind(%d/udp) returned %d: %s (%d)\n",
+			s->port, ret, strerror(errno), errno);
+		exit(-1);
+	}
+
+	return s;
+}
+
+/*
+ * Close UDP socket.
+ */
+void udp_socket_free(udp_socket *s)
+{
+	if(s) {
+		close(s->fd);
+		free(s);
+	}
+}
+
 /*
  * Receive next incoming UDP datagram on socket s.
  * Blocks until a datagram is received.
  * Will quit on errors.
  */
-datagram * datagram_recv(int sockfd)
+datagram * udp_socket_recv(udp_socket *s)
 {
 	char buf[UDP_DGM_MAXSIZE];
 	struct sockaddr_in sa;
 	socklen_t sa_len = sizeof(sa);
-	int ret = recvfrom(sockfd, buf, sizeof(buf), 0,
+	int ret = recvfrom(s->fd, buf, sizeof(buf), 0,
 		(struct sockaddr *)&sa, &sa_len);
 	if(ret < 0) {
 		fprintf(stderr, "FATAL: recvfrom(%d) returned %d: %s (%d)\n",
-			sockfd, ret, strerror(errno), errno);
+			s->fd, ret, strerror(errno), errno);
 		exit(-1);
 	}
 
 	datagram *dgm = datagram_new(ret);
 	memcpy(dgm->data, buf, dgm->len);
 	dgm->peer_addr = sa;
-	dgm->sockfd = sockfd;
 
 	return dgm;
 }
@@ -112,13 +127,13 @@ datagram * datagram_recv(int sockfd)
 /*
  * Send a UDP datagram onto socket s.
  */
-void datagram_send(datagram *dgm)
+void udp_socket_send(udp_socket *s, datagram *dgm)
 {
-	int ret = sendto(dgm->sockfd, dgm->data, dgm->len, 0,
+	int ret = sendto(s->fd, dgm->data, dgm->len, 0,
 		(struct sockaddr*)&dgm->peer_addr, sizeof(dgm->peer_addr));
 	if(ret < 0) {
 		fprintf(stderr, "FATAL: sendto(%d to %s:%d) returned %d: %s (%d)\n",
-			dgm->sockfd, inet_ntoa(dgm->peer_addr.sin_addr),
+			s->fd, inet_ntoa(dgm->peer_addr.sin_addr),
 			ntohs(dgm->peer_addr.sin_port),
 			ret, strerror(errno), errno);
 		exit(-1);

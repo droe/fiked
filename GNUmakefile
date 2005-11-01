@@ -17,16 +17,16 @@
 # $Id$
 
 CC=gcc
-CFLAGS?=-g -Wall -pedantic-errors
-LDFLAGS?=-g -Wall -pedantic-errors
+CFLAGS?=-g -Wall -pedantic
+LDFLAGS?=-g -Wall -pedantic
 CSTD=-std=c99
-COPTS=-I/usr/local/include
-LDOPTS=-L/usr/local/lib
-LIBS=-lgcrypt
+COPTS?=-I/usr/local/include
+LDOPTS?=-L/usr/local/lib
+LIBS=-lgcrypt -lnet
 
 PGM=fiked
 
-OBJS=config.o datagram.o peer_ctx.o results.o log.o ike.o main.o
+OBJS=config.o datagram.o send_dgm.o peer_ctx.o results.o log.o ike.o main.o
 
 SUBDIR=vpnc
 SUBDIR_OBJS=dh.o isakmp-pkt.o math_group.o

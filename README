@@ -54,11 +54,19 @@ to redirect the IKE traffic to your running fiked instance.  I have
 successfully implemented the attack under lab conditions with hostap and
 pf rdr.
 
+With the -r option, you can control whether fiked should forge the
+source address on packets or not, depending on whether your particular
+attack setup needs it or not.
+
 
 
 // Requirements
 
-You need libgcrypt 1.1.90 or greater [2] to build and run fiked.
+You need these libraries to build and run fiked:
+ * libgcrypt >= 1.1.90
+   http://directory.fsf.org/security/libgcrypt.html
+ * libnet >= 1.1.0
+   http://www.packetfactory.net/projects/libnet/
 
 Fiked has been developed and tested on FreeBSD.  You might need to do
 some minor tweaking to compile it on other platforms, but the code
@@ -68,7 +76,7 @@ should be fairly standard C99.  Please do send me patches though.
 
 // Credits
 
-Fiked is loosely based on VPNC [3].  The code borrowed from VPNC is
+Fiked is loosely based on VPNC [2].  The code borrowed from VPNC is
 found in the vpnc subdirectory, see vpnc/NOTICE.
 
 
@@ -76,7 +84,6 @@ found in the vpnc subdirectory, see vpnc/NOTICE.
 // References
 
 [1] http://www.cisco.com/warp/public/707/cisco-sn-20040415-grppass.shtml
-[2] http://directory.fsf.org/security/libgcrypt.html
-[3] http://www.unix-ag.uni-kl.de/~massar/vpnc/
+[2] http://www.unix-ag.uni-kl.de/~massar/vpnc/
 
 

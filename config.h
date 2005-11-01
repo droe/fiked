@@ -21,10 +21,13 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include "datagram.h"
+
 typedef struct _config {
-	int sockfd;	/* UDP socket we listen on */
-	char *gateway;	/* IP address of VPN gateway to impersonate */
-	char *psk;	/* pre-shared key */
+	udp_socket *us;		/* UDP socket we listen on */
+	char *gateway;		/* IP address of VPN gateway to impersonate */
+	char *psk;		/* pre-shared key */
+	int opt_raw;		/* use raw sockets to send packets */
 } config;
 
 config * config_new();

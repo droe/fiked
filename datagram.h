@@ -31,14 +31,19 @@ typedef struct _datagram {
 	size_t len;
 	uint8_t *data;
 	struct sockaddr_in peer_addr;
-	int sockfd;
 } datagram;
 
-int open_udp_socket(uint16_t port);
+typedef struct _udp_socket {
+	int fd;
+	uint16_t port;
+} udp_socket;
 
 datagram * datagram_new(size_t size);
 void datagram_free(datagram *dgm);
-datagram * datagram_recv(int sockfd);
-void datagram_send(datagram *dgm);
+
+udp_socket * udp_socket_new(uint16_t port);
+void udp_socket_free();
+datagram * udp_socket_recv(udp_socket *s);
+void udp_socket_send(udp_socket *s, datagram *dgm);
 
 #endif /* DATAGRAM_H */
