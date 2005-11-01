@@ -25,11 +25,11 @@ LDOPTS?=-L/usr/local/lib
 LIBS=-lgcrypt -lnet
 
 PGM=fiked
-
 OBJS=config.o datagram.o send_dgm.o peer_ctx.o results.o log.o ike.o main.o
-
 SUBDIR=vpnc
 SUBDIR_OBJS=dh.o isakmp-pkt.o math_group.o
+
+REPO=svn://projects.roe.ch/repos/$(PGM)
 
 all: $(PGM)
 
@@ -51,6 +51,7 @@ main.o: main.c $(SUBDIR)/isakmp.h $(SUBDIR)/isakmp-pkt.h datagram.h peer_ctx.h i
 	$(CC) $(CFLAGS) $(CSTD) $(COPTS) -c -o $@ $<
 
 package: clean
+	svn -v log $(REPO) > ChangeLog
 	version=`cat VERSION` && \
 	mkdir $(PGM)-$$version && \
 	tar -c -f - `find . -type f | grep -v svn | grep -v captures` | tar -x -C $(PGM)-$$version/ -f - && \
@@ -59,7 +60,7 @@ package: clean
 
 clean:
 	version=`cat VERSION` && \
-	rm -rf *.o *.core *.log $(PGM)-$$version.tar.bz2 $(PGM)
+	rm -rf *.o *.core *.log ChangeLog $(PGM)-$$version.tar.bz2 $(PGM)
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" CSTD="$(CSTD)" \
 		COPTS="$(COPTS)" LDOPTS="$(LDOPTS)" LIBS="$(LIBS)" \
 		$(MAKE) -C $(SUBDIR) clean
