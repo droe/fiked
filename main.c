@@ -39,7 +39,6 @@
 
 #include <gcrypt.h>
 
-
 char *self;
 void usage()
 {
@@ -75,15 +74,13 @@ int duplicate(peer_ctx *ctx, datagram *dgm)
 	return dup;
 }
 
-/* main loop will run as long as this is true */
-static int run = 1;
-
 /*
  * Option processing and main loop.
  */
 int main(int argc, char *argv[])
 {
 	self = argv[0];
+	_malloc_options = "X";	/* drop core on memory allocation errors */
 
 	int ch;
 	config *cfg = config_new();

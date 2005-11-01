@@ -26,8 +26,15 @@ This is an implementation of MITM against IKE PSK+XAUTH, or more
 correctly, just a fake IKE daemon supporting just enough of the
 standards to attack the common Cisco based PSK+XAUTH VPN setups.
 
+Basically, if you know the pre-shared key, also known as shared secret
+or group password, you can impersonate the VPN gateway and learn XAUTH
+user credentials.  There are several ways to get the pre-shared key,
+including being a legitimate user, grabbing it from accidentally
+disclosed client configuration files, or brute forcing it from the
+aggressive mode plain text r_hash.
+
 This attack [1] is not new.  It has been known for a long time that IKE
-using PSK and XAUTH is insecure, which is also why XAUTH was not
+using PSK with XAUTH is insecure, which is also why XAUTH was not
 accepted as an IETF standard, and this is probably not the first actual
 implementation of the attack.
 
@@ -51,16 +58,17 @@ location, or ARP spoofing.  You must be able to redirect the IKE traffic
 to a machine running fiked.
 
 If you don't know how to set all it up, you probably should not be
-running fiked in the first place.
+running fiked in the first place.  This is not ready to run out of the
+box on purpose.
 
 
 
 // Requirements
 
-Even though much of the code is based on vpnc [2], you only need
-libgcrypt [3] to build and run fiked.  If you are not running FreeBSD,
-you might need to do some minor tweaking to the source.  Feel free to
-send me patches.
+You need libgcrypt [3] to build and run fiked.  If you are not running
+FreeBSD, you might need to do some minor tweaking to the source to get
+it to compile, but since it uses strictly C99, it should be fairly
+portable.  Please do send me patches.
 
 
 
