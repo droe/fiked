@@ -136,7 +136,6 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 			/* generate initial phase 2 iv */
 			gcry_md_open(&md_ctx, ctx->md_algo, 0);
 			gcry_md_write(md_ctx, ctx->iv0, ctx->blk_len);
-			/* XXX: only works for intel endianness */
 			gcry_md_putc(md_ctx, (ikp->message_id >> 24) & 0xFF);
 			gcry_md_putc(md_ctx, (ikp->message_id >> 16) & 0xFF);
 			gcry_md_putc(md_ctx, (ikp->message_id >> 8) & 0xFF);
@@ -233,7 +232,6 @@ uint8_t * phase2_hash(peer_ctx *ctx, uint32_t message_id, struct isakmp_payload 
 	gcry_md_open(&md_ctx, ctx->md_algo, GCRY_MD_FLAG_HMAC);
 	gcry_md_setkey(md_ctx, ctx->skeyid_a, ctx->md_len);
 
-	/* XXX: only works for intel endianness */
 	gcry_md_putc(md_ctx, (message_id >> 24) & 0xFF);
 	gcry_md_putc(md_ctx, (message_id >> 16) & 0xFF);
 	gcry_md_putc(md_ctx, (message_id >> 8) & 0xFF);
