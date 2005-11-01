@@ -53,7 +53,7 @@ main.o: main.c $(SUBDIR)/isakmp.h $(SUBDIR)/isakmp-pkt.h datagram.h peer_ctx.h i
 package: clean
 	version=`cat VERSION` && \
 	mkdir $(PGM)-$$version && \
-	cp `find . -type f | grep -v svn | grep -v captures` $(PGM)-$$version/ && \
+	tar -c -f - `find . -type f | grep -v svn | grep -v captures` | tar -x -C $(PGM)-$$version/ -f - && \
 	tar cvfy $(PGM)-$$version.tar.bz2 $(PGM)-$$version && \
 	rm -r $(PGM)-$$version
 
