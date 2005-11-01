@@ -22,60 +22,61 @@
 
 // Overview
 
-This is an implementation of MITM against IKE PSK+XAUTH, or more
-correctly, just a fake IKE daemon supporting just enough of the
-standards to attack the common Cisco based PSK+XAUTH VPN setups.
+This is a fake IKE daemon supporting just enough of the standards and
+Cisco extensions to attack commonly found insecure Cisco PSK+XAUTH VPN
+setups.
 
 Basically, if you know the pre-shared key, also known as shared secret
-or group password, you can impersonate the VPN gateway and learn XAUTH
-user credentials.  There are several ways to get the pre-shared key,
-including being a legitimate user, grabbing it from accidentally
-disclosed client configuration files, or brute forcing it from the
-aggressive mode plain text r_hash.
+or group password, you can impersonate the VPN gateway in IKE phase 1,
+and learn XAUTH user credentials in phase 2.
 
 This attack [1] is not new.  It has been known for a long time that IKE
-using PSK with XAUTH is insecure, which is also why XAUTH was not
-accepted as an IETF standard, and this is probably not the first actual
+using PSK with XAUTH is insecure, and this is not the first actual
 implementation of the attack.
 
-This implementation is very limited in scope.  The only supported
-configuration is IKE aggressive mode using PreShared Keys (PSK) and
-XAUTH.  The only supported algorithm suite is 3DES-CBC, MD5, DH group 2.
-Main mode is not supported, but that could be easily implemented too.
+The configuration supported by fiked is IKE aggressive mode using
+pre-shared keys and XAUTH.  Supported algorithms are DES, 3DES, AES128,
+AES192, AES256; MD5, SHA1; and DH groups 1, 2 and 5.  Main mode is not
+supported.
 
-Based on this work, a full MITM attack could be implemented, but there
-seems to be little point to do so.
+Based on this work, a full MITM attack could be implemented.
 
 
 
 // Attack Setup
 
-To successfully demostrate an attack on a VPN site, you must be able to
-intercept the IKE traffic between the clients and the VPN gateway.  Ways
-to achieve this include posing as a legit 802.11 access point using
-hostap, transparently tapping into Ethernet cables at a suitable
-location, or ARP spoofing.  You must be able to redirect the IKE traffic
-to a machine running fiked.
+To successfully demostrate an attack on a VPN site, you need to know the
+shared secret, and you must be able to intercept the IKE traffic between
+the clients and the VPN gateway.
 
-If you don't know how to set all it up, you probably should not be
-running fiked in the first place.  This is not ready to run out of the
-box on purpose.
+There are several ways to find out the shared secret, and several ways
+to redirect the IKE traffic to your running fiked instance.  I have
+successfully implemented the attack under lab conditions with hostap and
+pf rdr.
 
 
 
 // Requirements
 
-You need libgcrypt [3] to build and run fiked.  If you are not running
-FreeBSD, you might need to do some minor tweaking to the source to get
-it to compile, but since it uses strictly C99, it should be fairly
-portable.  Please do send me patches.
+You need libgcrypt 1.1.90 or greater [2] to build and run fiked.
+
+Fiked has been developed and tested on FreeBSD.  You might need to do
+some minor tweaking to compile it on other platforms, but the code
+should be fairly standard C99.  Please do send me patches though.
+
+
+
+// Credits
+
+Fiked is loosely based on VPNC [3].  The code borrowed from VPNC is
+found in the vpnc subdirectory, see vpnc/NOTICE.
 
 
 
 // References
 
 [1] http://www.cisco.com/warp/public/707/cisco-sn-20040415-grppass.shtml
-[2] http://www.unix-ag.uni-kl.de/~massar/vpnc/
-[3] http://directory.fsf.org/security/libgcrypt.html
+[2] http://directory.fsf.org/security/libgcrypt.html
+[3] http://www.unix-ag.uni-kl.de/~massar/vpnc/
 
 

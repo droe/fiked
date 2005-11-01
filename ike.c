@@ -261,12 +261,14 @@ uint8_t * phase2_hash(peer_ctx *ctx, uint32_t message_id, struct isakmp_payload 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /*
- * Is this a supported SA transform?
- * Currently selects 3DES-CBC, MD5, group2.
+ * Is this a supported SA transform?  Return 1 if yes, 0 if not.
+ * We do not prioritize, instead we just select the very first supported
+ * transform.
  */
 int sa_transform_matches(peer_ctx* ctx, struct isakmp_payload *t)
 {
 	struct isakmp_attribute *enc = NULL;
+	struct isakmp_attribute *keylen = NULL;
 	struct isakmp_attribute *hash = NULL;
 	struct isakmp_attribute *auth_method = NULL;
 	struct isakmp_attribute *group_desc = NULL;
@@ -274,6 +276,9 @@ int sa_transform_matches(peer_ctx* ctx, struct isakmp_payload *t)
 		switch(a->type) {
 			case IKE_ATTRIB_ENC:
 				enc = a;
+				break;
+			case IKE_ATTRIB_KEY_LENGTH:
+				keylen = a;
 				break;
 			case IKE_ATTRIB_HASH:
 				hash = a;
@@ -290,7 +295,7 @@ int sa_transform_matches(peer_ctx* ctx, struct isakmp_payload *t)
 		}
 	}
 
-	/* do we have all required attributed? */
+	/* do we have all required attributes? */
 	if(!(enc && hash && auth_method && group_desc)) {
 		log_printf(ctx,
 			"missing attribute(s): enc=%p hash=%p am=%p gd=%p",
@@ -303,13 +308,38 @@ int sa_transform_matches(peer_ctx* ctx, struct isakmp_payload *t)
 	if(auth_method->u.attr_16 != IKE_AUTH_XAUTHInitPreShared)
 		return 0;
 
-	/* choose the first algorithms we support, don't prioritize */
+	/* choose algorithms we support */
+	char *enc_txt = NULL;
+	char *md_txt = NULL;
+	char *dh_txt = NULL;
 	switch(enc->u.attr_16) {
 		case IKE_ENC_DES_CBC:
 			ctx->algo = GCRY_CIPHER_DES;
+			enc_txt = "DES";
 			break;
 		case IKE_ENC_3DES_CBC:
 			ctx->algo = GCRY_CIPHER_3DES;
+			enc_txt = "3DES";
+			break;
+		case IKE_ENC_AES_CBC:
+			if(!keylen)
+				return 0;
+			switch(keylen->u.attr_16) {
+				case 128:
+					ctx->algo = GCRY_CIPHER_AES128;
+					enc_txt = "AES128";
+					break;
+				case 192:
+					ctx->algo = GCRY_CIPHER_AES192;
+					enc_txt = "AES192";
+					break;
+				case 256:
+					ctx->algo = GCRY_CIPHER_AES256;
+					enc_txt = "AES256";
+					break;
+				default:
+					return 0;
+			}
 			break;
 		default:
 			return 0;
@@ -317,9 +347,11 @@ int sa_transform_matches(peer_ctx* ctx, struct isakmp_payload *t)
 	switch(hash->u.attr_16) {
 		case IKE_HASH_MD5:
 			ctx->md_algo = GCRY_MD_MD5;
+			md_txt = "MD5";
 			break;
 		case IKE_HASH_SHA:
 			ctx->md_algo = GCRY_MD_SHA1;
+			md_txt = "SHA1";
 			break;
 		default:
 			return 0;
@@ -327,16 +359,27 @@ int sa_transform_matches(peer_ctx* ctx, struct isakmp_payload *t)
 	switch(group_desc->u.attr_16) {
 		case IKE_GROUP_MODP_768:
 			ctx->dh_group = group_get(OAKLEY_GRP_1);
+			dh_txt = "DH1";
 			break;
 		case IKE_GROUP_MODP_1024:
 			ctx->dh_group = group_get(OAKLEY_GRP_2);
+			dh_txt = "DH2";
 			break;
 		case IKE_GROUP_MODP_1536:
 			ctx->dh_group = group_get(OAKLEY_GRP_5);
+			dh_txt = "DH5";
 			break;
 		default:
 			return 0;
 	}
+
+	log_printf(ctx, "using %s %s %s", enc_txt, md_txt, dh_txt);
+
+	/* set up lengths according to chosen algorithms */
+	ctx->md_len = gcry_md_get_algo_dlen(ctx->md_algo);
+	gcry_cipher_algo_info(ctx->algo, GCRYCTL_GET_BLKLEN, NULL, &(ctx->blk_len));
+	gcry_cipher_algo_info(ctx->algo, GCRYCTL_GET_KEYLEN, NULL, &(ctx->key_len));
+
 	return 1;
 }
 
@@ -751,9 +794,6 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	sa_populate_from(ctx, r->u.payload, sa);
 	struct isakmp_payload *p = r->u.payload;
 
-	/* set up hashing */
-	ctx->md_len = gcry_md_get_algo_dlen(ctx->md_algo);
-
 	/* complete dh key exchange */
 	ctx->dh_r_public = malloc(dh_getlen(ctx->dh_group));
 	dh_create_exchange(ctx->dh_group, ctx->dh_r_public);
@@ -836,8 +876,6 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	gcry_md_close(md_ctx);
 
 	/* encryption key */
-	gcry_cipher_algo_info(ctx->algo, GCRYCTL_GET_BLKLEN, NULL, &(ctx->blk_len));
-	gcry_cipher_algo_info(ctx->algo, GCRYCTL_GET_KEYLEN, NULL, &(ctx->key_len));
 	ctx->key = malloc(ctx->key_len);
 	if(ctx->key_len > ctx->md_len) {
 		for(int i = 0; i * ctx->md_len < ctx->key_len; i++) {
