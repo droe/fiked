@@ -299,16 +299,49 @@ int sa_transform_matches(peer_ctx* ctx, struct isakmp_payload *t)
 		return 0;
 	}
 
-	/* choose */
-	return (enc->u.attr_16 == IKE_ENC_3DES_CBC
-		&& hash->u.attr_16 == IKE_HASH_MD5
-		&& auth_method->u.attr_16 == IKE_AUTH_XAUTHInitPreShared
-		&& group_desc->u.attr_16 == IKE_GROUP_MODP_1024);
+	/* we don't support anything other than PSK+XAUTH */
+	if(auth_method->u.attr_16 != IKE_AUTH_XAUTHInitPreShared)
+		return 0;
+
+	/* choose the first algorithms we support, don't prioritize */
+	switch(enc->u.attr_16) {
+		case IKE_ENC_DES_CBC:
+			ctx->algo = GCRY_CIPHER_DES;
+			break;
+		case IKE_ENC_3DES_CBC:
+			ctx->algo = GCRY_CIPHER_3DES;
+			break;
+		default:
+			return 0;
+	}
+	switch(hash->u.attr_16) {
+		case IKE_HASH_MD5:
+			ctx->md_algo = GCRY_MD_MD5;
+			break;
+		case IKE_HASH_SHA:
+			ctx->md_algo = GCRY_MD_SHA1;
+			break;
+		default:
+			return 0;
+	}
+	switch(group_desc->u.attr_16) {
+		case IKE_GROUP_MODP_768:
+			ctx->dh_group = group_get(OAKLEY_GRP_1);
+			break;
+		case IKE_GROUP_MODP_1024:
+			ctx->dh_group = group_get(OAKLEY_GRP_2);
+			break;
+		case IKE_GROUP_MODP_1536:
+			ctx->dh_group = group_get(OAKLEY_GRP_5);
+			break;
+		default:
+			return 0;
+	}
+	return 1;
 }
 
 /*
- * Walk proposal SA, copy relevant stuff to response SA.
- * Currently selects 3DES-CBC MD5 group2, hardwired.
+ * Walk proposal SA, choose a transform, copy relevant stuff to response SA.
  */
 void sa_populate_from(peer_ctx* ctx, struct isakmp_payload *response, struct isakmp_payload *proposal)
 {
@@ -350,11 +383,6 @@ void sa_populate_from(peer_ctx* ctx, struct isakmp_payload *response, struct isa
 		*ra = *pa;
 		ra->next = NULL;
 	}
-
-	/* store algorithm identifyers in peer context */
-	ctx->algo = GCRY_CIPHER_3DES;			/* not sexy */
-	ctx->md_algo = GCRY_MD_MD5;			/* not sexy */
-	ctx->dh_group = group_get(OAKLEY_GRP_2);	/* not sexy */
 }
 
 
