@@ -47,7 +47,7 @@
 
 #include "isakmp-pkt.h"
 
-#define xallocc(X) malloc(X)
+#define xallocc(X) calloc(1, X)
 #define DEBUG(X,Y) 
 #define hex_dump(X,Y,Z) 
 static int opt_debug = 0;
