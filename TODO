@@ -1,2 +1,4 @@
  * support for multiple shared secrets, ipsec ids, gateway addresses
+ * check on the nonce in phase2_hash
  * write fiked(1) man page
+ * implement full MitM

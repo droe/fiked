@@ -27,7 +27,7 @@ LIBS=-lgcrypt -lnet
 PGM=fiked
 OBJS=config.o datagram.o send_dgm.o peer_ctx.o results.o log.o ike.o main.o
 SUBDIR=vpnc
-SUBDIR_OBJS=dh.o isakmp-pkt.o math_group.o
+SUBLIB=lib$(SUBDIR).a
 
 REPO=svn://projects.roe.ch/repos/$(PGM)
 URL=http://www.roe.ch/FakeIKEd
@@ -35,15 +35,15 @@ VERSION=$(shell cat VERSION)
 
 all: $(PGM)
 
-$(PGM): $(SUBDIR_OBJS) $(OBJS)
+$(PGM): $(OBJS) $(SUBLIB)
 	$(CC) $(LDFLAGS) $(LDOPTS) -o $@ $^ $(LIBS)
 
-subdirs:
+subdir:
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" CSTD="$(CSTD)" \
 		COPTS="$(COPTS)" LDOPTS="$(LDOPTS)" LIBS="$(LIBS)" \
 		$(MAKE) -C $(SUBDIR) all
 
-$(SUBDIR_OBJS): subdirs
+$(SUBLIB): subdir
 	@ln -sf $(SUBDIR)/$@ $@
 
 main.o: main.c $(SUBDIR)/*.h *.h
@@ -63,9 +63,9 @@ package: clean
 
 clean:
 	version=`cat VERSION` && \
-	rm -rf *.o *.core *.log ChangeLog $(PGM)-$$version.tar.bz2 $(PGM)
+	rm -rf *.o *.a *.core *.log ChangeLog $(PGM)-$$version.tar.bz2 $(PGM)
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" CSTD="$(CSTD)" \
 		COPTS="$(COPTS)" LDOPTS="$(LDOPTS)" LIBS="$(LIBS)" \
 		$(MAKE) -C $(SUBDIR) clean
 
-.PHONY: all package clean subdirs
+.PHONY: all package clean subdir

@@ -25,7 +25,10 @@ COPTS?=-I/usr/local/include
 LDOPTS?=-L/usr/local/lib
 LIBS?=-lgcrypt
 
-all: isakmp-pkt.o math_group.o dh.o
+all: libvpnc.a
+
+libvpnc.a: isakmp-pkt.o math_group.o dh.o
+	$(AR) cru $@ $^
 
 isakmp-pkt.o: isakmp-pkt.c isakmp-pkt.h isakmp.h
 	$(CC) $(CFLAGS) $(CSTD) $(COPTS) -c -o $@ $<
@@ -34,6 +37,6 @@ isakmp-pkt.o: isakmp-pkt.c isakmp-pkt.h isakmp.h
 	$(CC) $(CFLAGS) $(CSTD) $(COPTS) -c -o $@ $<
 
 clean:
-	rm -rf *.o *.core
+	rm -rf *.o *.a *.core
 
 .PHONY: all clean

@@ -39,13 +39,16 @@
 #include <gcrypt.h>
 
 /*
- * NOTICE: This code is unsuitable for implementing a genuine IKE responder!
- *         It's very likely to be any or all of: insecure, incompatible,
- *         inefficient, unstable, unportable, or outright broken.
- *         There's hardly enough sanity checking and failure resistance.
- *         If you want genuine IKE source code, look for a proper
- *         implementation instead.  This is a quick hack to snarf XAUTH
- *         credentials from clients, not a full implementation of IKE.
+ *	W A R N I N G   /   D I S C L A I M E R
+ *
+ *	This code is unsuitable for building a genuine IKE responder!
+ *	It's very likely to be any or all of: insecure, incompatible,
+ *	inefficient, unstable, unportable, or outright broken.
+ *	There's hardly enough sanity checking and failure resistance.
+ *	If you want genuine IKE source code, look for a proper
+ *	implementation instead.  This is a quick hack to snarf XAUTH
+ *	credentials from clients, not a full implementation of IKE.
+ *	You've been warned.
  */
 
 
@@ -387,7 +390,7 @@ int sa_transform_matches(peer_ctx* ctx, struct isakmp_payload *t)
 /*
  * Walk proposal SA, choose a transform, copy relevant stuff to response SA.
  */
-void sa_populate_from(peer_ctx* ctx, struct isakmp_payload *response, struct isakmp_payload *proposal)
+void sa_transform_choose(peer_ctx* ctx, struct isakmp_payload *response, struct isakmp_payload *proposal)
 {
 	/* copy SA payload */
 	*response = *proposal;
@@ -627,7 +630,7 @@ void ike_process_phase2_modecfg(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 		case ISAKMP_MODECFG_CFG_ACK:
 			/* final ACK(STATUS) for our SET(STATUS=FAIL) */
-			log_printf(ctx, "IKE session terminated");
+			log_printf(ctx, "IKE session closed");
 			peer_ctx_reset(ctx);
 			break;
 
@@ -790,7 +793,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 	/* payload: sa */
 	r->u.payload = new_isakmp_payload(ISAKMP_PAYLOAD_SA);
-	sa_populate_from(ctx, r->u.payload, sa);
+	sa_transform_choose(ctx, r->u.payload, sa);
 	struct isakmp_payload *p = r->u.payload;
 
 	/* complete dh key exchange */
@@ -836,7 +839,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	memcpy(ctx->skeyid, gcry_md_read(md_ctx, 0), ctx->md_len);
 	gcry_md_close(md_ctx);
 
-	/* skeyid_e */
+	/* generate skeyid_e */
 	gcry_md_open(&md_ctx, ctx->md_algo, GCRY_MD_FLAG_HMAC);
 	gcry_md_setkey(md_ctx, ctx->skeyid, ctx->md_len);
 	gcry_md_write(md_ctx, ctx->dh_secret, dh_getlen(ctx->dh_group));
@@ -848,7 +851,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	memcpy(ctx->skeyid_d, gcry_md_read(md_ctx, 0), ctx->md_len);
 	gcry_md_close(md_ctx);
 
-	/* skeyid_a */
+	/* generate skeyid_a */
 	gcry_md_open(&md_ctx, ctx->md_algo, GCRY_MD_FLAG_HMAC);
 	gcry_md_setkey(md_ctx, ctx->skeyid, ctx->md_len);
 	gcry_md_write(md_ctx, ctx->skeyid_d, ctx->md_len);
@@ -861,7 +864,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	memcpy(ctx->skeyid_a, gcry_md_read(md_ctx, 0), ctx->md_len);
 	gcry_md_close(md_ctx);
 
-	/* skeyid_d */
+	/* generate skeyid_d */
 	gcry_md_open(&md_ctx, ctx->md_algo, GCRY_MD_FLAG_HMAC);
 	gcry_md_setkey(md_ctx, ctx->skeyid, ctx->md_len);
 	gcry_md_write(md_ctx, ctx->skeyid_a, ctx->md_len);
