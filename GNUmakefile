@@ -30,6 +30,8 @@ SUBDIR=vpnc
 SUBDIR_OBJS=dh.o isakmp-pkt.o math_group.o
 
 REPO=svn://projects.roe.ch/repos/$(PGM)
+URL=http://www.roe.ch/FakeIKEd
+VERSION=$(shell cat VERSION)
 
 all: $(PGM)
 
@@ -44,19 +46,20 @@ subdirs:
 $(SUBDIR_OBJS): subdirs
 	@ln -sf $(SUBDIR)/$@ $@
 
-main.o: main.c $(SUBDIR)/isakmp.h $(SUBDIR)/isakmp-pkt.h datagram.h peer_ctx.h ike.h
-	$(CC) $(CFLAGS) $(CSTD) $(COPTS) -c -o $@ $<
+main.o: main.c $(SUBDIR)/*.h *.h
+	$(CC) $(CFLAGS) $(CSTD) -DVERSION=\"$(VERSION)\" -DURL=\"$(URL)\" \
+		$(COPTS) -c -o $@ $<
 
 %.o: %.c %.h
 	$(CC) $(CFLAGS) $(CSTD) $(COPTS) -c -o $@ $<
 
 package: clean
 	svn -v log $(REPO) > ChangeLog
-	version=`cat VERSION` && \
-	mkdir $(PGM)-$$version && \
-	tar -c -f - `find . -type f | grep -v svn | grep -v captures` | tar -x -C $(PGM)-$$version/ -f - && \
-	tar cvfy $(PGM)-$$version.tar.bz2 $(PGM)-$$version && \
-	rm -r $(PGM)-$$version
+	mkdir $(PGM)-$(VERSION) && \
+	tar -c -f - `find . -type f | grep -v svn | grep -v captures` \
+		| tar -x -C $(PGM)-$(VERSION)/ -f - && \
+	tar cvfy $(PGM)-$(VERSION).tar.bz2 $(PGM)-$(VERSION) && \
+	rm -r $(PGM)-$(VERSION)
 
 clean:
 	version=`cat VERSION` && \

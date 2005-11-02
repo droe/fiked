@@ -19,6 +19,7 @@
  */
 
 #include "send_dgm.h"
+#include "log.h"
 #include "ike.h"
 #include <libnet.h>
 
@@ -33,7 +34,7 @@ void raw_send(datagram *dgm, char *shost, uint16_t sport)
 		sport, ntohs(dgm->peer_addr.sin_port),
 		LIBNET_UDP_H + dgm->len, 0, dgm->data, dgm->len, lnet, 0);
 	if(udp <= 0) {
-		fprintf(stderr, "FATAL: cannot build UDP header: %s\n",
+		log_printf(NULL, "FATAL: cannot build UDP header: %s\n",
 			libnet_geterror(lnet));
 		exit(-1);
 	}
@@ -44,13 +45,13 @@ void raw_send(datagram *dgm, char *shost, uint16_t sport)
 		dgm->peer_addr.sin_addr.s_addr,
 		NULL, 0, lnet, 0);
 	if(ip <= 0) {
-		fprintf(stderr, "FATAL: cannot build IP header: %s\n",
+		log_printf(NULL, "FATAL: cannot build IP header: %s\n",
 			libnet_geterror(lnet));
 		exit(-1);
 	}
 	int ret = libnet_write(lnet);
 	if(ret < 0) {
-		fprintf(stderr, "FATAL: write error: %s\n", libnet_geterror(lnet));
+		log_printf(NULL, "FATAL: write error: %s\n", libnet_geterror(lnet));
 		exit(-1);
 	}
 	libnet_destroy(lnet);

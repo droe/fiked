@@ -116,9 +116,10 @@ int main(int argc, char *argv[])
 			opt_quiet = 1;
 			break;
 		case 'V':
-			printf("fiked - fake IKE PSK+XAUTH daemon based on vpnc\n");
+			printf("fiked-%s - fake IKE PSK+XAUTH daemon based on vpnc\n", VERSION);
 			printf("Copyright (C) 2005, Daniel Roethlisberger <daniel@roe.ch>\n");
 			printf("Licensed under the GNU General Public License, version 2 or later\n");
+			printf("%s\n", URL);
 			exit(0);
 		case 'h':
 		case '?':
@@ -142,6 +143,9 @@ int main(int argc, char *argv[])
 
 	if(opt_daemon)
 		daemon(0, 0);
+
+	log_printf(NULL, "fiked-%s started (%d/udp%s)", VERSION, cfg->us->port,
+		cfg->opt_raw ? "+raw" : "");
 
 	peer_ctx *peers = NULL;
 	peer_ctx *ctx = NULL;
