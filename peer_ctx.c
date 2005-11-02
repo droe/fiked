@@ -120,10 +120,9 @@ void peer_ctx_clear(peer_ctx *ctx)
 void peer_ctx_reset(peer_ctx *ctx)
 {
 	peer_ctx_clear(ctx);
-
+	memset((uint8_t *)&ctx->state, 0,
+		(uint8_t *)ctx - (uint8_t *)&ctx->state + sizeof(peer_ctx));
 	ctx->state = STATE_NEW;
-	memset(ctx->i_cookie, 0, sizeof(ctx->i_cookie));
-	memset(ctx->r_cookie, 0, sizeof(ctx->r_cookie));
 }
 
 void peer_ctx_free(peer_ctx *ctx)

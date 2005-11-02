@@ -70,7 +70,7 @@ udp_socket * udp_socket_new(uint16_t port)
 	s->port = port;
 	s->fd = socket(PF_INET, SOCK_DGRAM, 0);
 	if(s->fd < 0) {
-		log_printf(NULL, "FATAL: socket() returned %d: %s (%d)\n",
+		fprintf(stderr, "FATAL: socket(udp) returned %d: %s (%d)\n",
 			s->fd, strerror(errno), errno);
 		exit(-1);
 	}
@@ -81,7 +81,7 @@ udp_socket * udp_socket_new(uint16_t port)
 	sa.sin_addr.s_addr = htonl(INADDR_ANY);
 	int ret = bind(s->fd, (struct sockaddr *)&sa, sizeof(sa));
 	if(ret < 0) {
-		log_printf(NULL, "FATAL: bind(%d/udp) returned %d: %s (%d)\n",
+		fprintf(stderr, "FATAL: bind(%d/udp) returned %d: %s (%d)\n",
 			s->port, ret, strerror(errno), errno);
 		exit(-1);
 	}
@@ -103,7 +103,6 @@ void udp_socket_free(udp_socket *s)
 /*
  * Receive next incoming UDP datagram on socket s.
  * Blocks until a datagram is received.
- * Will quit on errors.
  */
 datagram * udp_socket_recv(udp_socket *s)
 {
@@ -113,9 +112,8 @@ datagram * udp_socket_recv(udp_socket *s)
 	int ret = recvfrom(s->fd, buf, sizeof(buf), 0,
 		(struct sockaddr *)&sa, &sa_len);
 	if(ret < 0) {
-		log_printf(NULL, "FATAL: recvfrom(%d) returned %d: %s (%d)\n",
+		log_printf(NULL, "ERROR: recvfrom(%d) returned %d: %s (%d)\n",
 			s->fd, ret, strerror(errno), errno);
-		exit(-1);
 	}
 
 	datagram *dgm = datagram_new(ret);
@@ -133,11 +131,10 @@ void udp_socket_send(udp_socket *s, datagram *dgm)
 	int ret = sendto(s->fd, dgm->data, dgm->len, 0,
 		(struct sockaddr*)&dgm->peer_addr, sizeof(dgm->peer_addr));
 	if(ret < 0) {
-		log_printf(NULL, "FATAL: sendto(%d to %s:%d) returned %d: %s (%d)\n",
+		log_printf(NULL, "ERROR: sendto(%d to %s:%d) returned %d: %s (%d)\n",
 			s->fd, inet_ntoa(dgm->peer_addr.sin_addr),
 			ntohs(dgm->peer_addr.sin_port),
 			ret, strerror(errno), errno);
-		exit(-1);
 	}
 }
 

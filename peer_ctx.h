@@ -51,7 +51,10 @@ typedef struct _peer_ctx {
 		STATE_NEW,
 		STATE_PHASE1,
 		STATE_PHASE2
-	} state;
+	} state; /* from here, clear will zero everything */
+
+	/* done flag: signal that credentials are complete */
+	int done;
 
 	/* the interesting stuff */
 	uint8_t *ipsec_id;

@@ -34,9 +34,9 @@ void raw_send(datagram *dgm, char *shost, uint16_t sport)
 		sport, ntohs(dgm->peer_addr.sin_port),
 		LIBNET_UDP_H + dgm->len, 0, dgm->data, dgm->len, lnet, 0);
 	if(udp <= 0) {
-		log_printf(NULL, "FATAL: cannot build UDP header: %s\n",
+		log_printf(NULL, "ERROR: cannot build UDP header: %s\n",
 			libnet_geterror(lnet));
-		exit(-1);
+		return;
 	}
 	libnet_ptag_t ip = libnet_build_ipv4(
 		LIBNET_IPV4_H + LIBNET_UDP_H + dgm->len,
@@ -47,12 +47,13 @@ void raw_send(datagram *dgm, char *shost, uint16_t sport)
 	if(ip <= 0) {
 		log_printf(NULL, "FATAL: cannot build IP header: %s\n",
 			libnet_geterror(lnet));
-		exit(-1);
+		return;
 	}
 	int ret = libnet_write(lnet);
-	if(ret < 0) {
-		log_printf(NULL, "FATAL: write error: %s\n", libnet_geterror(lnet));
-		exit(-1);
+	if(ret <= 0) {
+		log_printf(NULL, "ERROR: write error: %s\n",
+			libnet_geterror(lnet));
+		return;
 	}
 	libnet_destroy(lnet);
 }

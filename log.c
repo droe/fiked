@@ -26,14 +26,16 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <time.h>
 #include <string.h>
 #include <stdarg.h>
 
 extern int errno;
 static FILE* file = NULL;
+static int quiet = 0;
 
-void log_init(char *filename, int quiet)
+void log_init(char *filename, int q)
 {
 	log_cleanup();
 	if(filename) {
@@ -43,34 +45,58 @@ void log_init(char *filename, int quiet)
 				strerror(errno));
 			exit(-1);
 		}
-	} else {
-		file = quiet ? NULL : stdout;
+	}
+	quiet = q;
+}
+
+void log_do_printf(const char *fmt, ...)
+{
+	va_list ap;
+
+	char *buf;
+	va_start(ap, fmt);
+	vasprintf(&buf, fmt, ap);
+	va_end(ap);
+
+	if(file) {
+		fprintf(file, "%s", buf);
+	}
+	if(!quiet) {
+		fprintf(stdout, "%s", buf);
+	}
+}
+
+void log_do_flush()
+{
+	if(file) {
+		fflush(file);
+	}
+	if(!quiet) {
+		fflush(stdout);
 	}
 }
 
 void log_printf(peer_ctx *ctx, const char *fmt, ...)
 {
 	va_list ap;
-	if(file) {
-		char timestamp[1024];
-		time_t epoch = time(0);
-		strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S %z",
-			localtime(&epoch));
+	char timestamp[1024];
+	time_t epoch = time(0);
+	strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S %z",
+		localtime(&epoch));
 
-		char *buf;
-		va_start(ap, fmt);
-		vasprintf(&buf, fmt, ap);
-		va_end(ap);
+	char *buf;
+	va_start(ap, fmt);
+	vasprintf(&buf, fmt, ap);
+	va_end(ap);
 
-		fprintf(file, "[%s] ", timestamp);
-		if(ctx) {
-			fprintf(file, "[%s:%d] ",
-				inet_ntoa(ctx->peer_addr.sin_addr),
-				ntohs(ctx->peer_addr.sin_port));
-		}
-		fprintf(file, "%s\n", buf);
-		fflush(file);
+	log_do_printf("[%s] [%d] ", timestamp, getpid());
+	if(ctx) {
+		log_do_printf("[%s:%d] ",
+			inet_ntoa(ctx->peer_addr.sin_addr),
+			ntohs(ctx->peer_addr.sin_port));
 	}
+	log_do_printf("%s\n", buf);
+	log_do_flush();
 }
 
 void log_cleanup()

