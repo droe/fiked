@@ -30,7 +30,7 @@ Basically, if you know the pre-shared key, also known as shared secret
 or group password, you can impersonate the VPN gateway in IKE phase 1,
 and learn XAUTH user credentials in phase 2.
 
-This attack [1] is not new.  It has been known for a long time that IKE
+This attack [2] is not new.  It has been known for a long time that IKE
 using PSK with XAUTH is insecure, and this is not the first actual
 implementation of the attack.
 
@@ -79,14 +79,14 @@ make install (gmake on BSD).
 
 // Credits
 
-Fiked is loosely based on VPNC [2].  The code borrowed from VPNC is
+Fiked is loosely based on VPNC [3].  The code borrowed from VPNC is
 found in the vpnc subdirectory, see vpnc/NOTICE.
 
 
 
 // References
 
-[1] http://www.cisco.com/warp/public/707/cisco-sn-20040415-grppass.shtml
-[2] http://www.unix-ag.uni-kl.de/~massar/vpnc/
-
+[1] http://www.roe.ch/FakeIKEd
+[2] http://www.cisco.com/warp/public/707/cisco-sn-20040415-grppass.shtml
+[3] http://www.unix-ag.uni-kl.de/~massar/vpnc/
 
