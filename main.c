@@ -29,6 +29,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <errno.h>
@@ -102,6 +103,8 @@ int main(int argc, char *argv[])
 {
 	self = argv[0];
 	_malloc_options = "X";	/* drop core on memory allocation errors */
+
+	umask(0077);
 
 	int ch;
 	config *cfg = config_new();
