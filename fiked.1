@@ -1,0 +1,126 @@
+.\" fiked - a fake IKE PSK+XAUTH daemon based on vpnc
+.\" Copyright (C) 2005, Daniel Roethlisberger <daniel@roe.ch>
+.\" 
+.\" This program is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation; either version 2 of the License, or
+.\" (at your option) any later version.
+.\" 
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\" 
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program; if not, see http://www.gnu.org/copyleft/
+.\" 
+.\" $Id$
+.\"
+.TH FIKED 1  "1 November 2005"
+.SH NAME
+fiked \- a fake IKE PSK+XAUTH daemon based on vpnc
+.SH SYNOPSIS
+.na
+.B fiked
+[
+.B \-rdqhV
+]
+.B \-g
+.I gateway
+.B \-k
+.I secret
+[
+.B \-l
+.I file
+] [
+.B \-L
+.I file
+]
+.br
+.ad
+.SH DESCRIPTION
+.LP
+\fIFiked\fP impersonates a VPN \fIgateway\fP's IKE responder in order to
+capture XAUTH login credentials in insecure PSK+XAUTH setups, such as
+commonly found in Cisco based VPN sites.
+.LP
+\fIFiked\fP supports IKEv1 in aggressive mode, using pre-shared keys and
+XAUTH.  Supported algorithms are DES, 3DES, AES-128, AES-192, AES-256;
+MD5, SHA1; and DH groups 1, 2 and 5.  IKE main mode is not supported.
+.LP
+To actually implement an attack against a VPN site, you have to intercept
+the IKE traffic to the VPN \fIgateway\fP and redirect it to \fIfiked\fP.
+Your options include hostap or ARP poisoning, and usually will require
+some (eg.)
+.BR pf (4)
+redirection magic, depending on the situation.
+.LP
+Opening a socket on 500/udp requires root privileges on most systems.
+.SH OPTIONS
+.TP
+.B \-d
+Detach from TTY and run as a daemon.
+.TP
+.B \-g
+Impersonate \fIgateway\fP.  This IP address is used in the responder ID
+payload, and as a source address if
+.B \-r
+is used.
+.TP
+.B \-h
+Display help and exit.
+.TP
+.B \-k
+Use \fIsecret\fP as pre-shared key in phase 1 authentication.  Note that
+specifying the \fIsecret\fP on the command line potentially exposes it to
+other users on the system.
+.TP
+.B \-l
+Append captured XAUTH user credentials to \fIfile\fP using a grep friendly
+format, including the \fIsecret\fP, group id, and \fIgateway\fP address.
+.TP
+.B \-L
+Append verbous logging to \fIfile\fP instead of just standard output.  If
+.B \-q
+is also given, log to \fIfile\fP only.
+.TP
+.B \-q
+Be quiet and do not log to standard output.
+.TP
+.B \-r
+Forge the source address on sent packets to match \fIgateway\fP.  This
+uses a raw socket to send the packets.  Use this option if your
+particular attack setup does not rewrite the packets traveling from
+\fIfiked\fP back to clients.
+.TP
+.B \-V
+Display version information and exit.
+.SH EXAMPLES
+.LP
+To impersonate \fIgateway\fP 10.0.0.1 using \fIsecret\fP g3h31m,
+writing results to \fIfile\fP account.log:
+.RS
+.nf
+\fBfiked -g 10.0.0.1 -k g3h31m -l account.log\fP
+.fi
+.RE
+.LP
+The same, but running as a daemon and logging to \fIfile\fP fiked.log:
+.RS
+.nf
+\fBfiked -g 10.0.0.1 -k g3h31m -l account.log -d -L fiked.log\fP
+.fi
+.RE
+.SH "SEE ALSO"
+pf(4), vpnc(8)
+.SH AUTHORS
+\fIFiked\fP was written by Daniel Roethlisberger <daniel@roe.ch>, based in
+part on \fIvpnc\fP by Maurice Massar, Geoffrey Keating and contributors.
+.SH BUGS
+IKE protocol compliance is just good enough to attack Cisco VPN clients and
+clones, but nowhere near complete.
+.LP
+Main mode is not supported.
+.LP
+Only a single \fIgateway\fP address and shared \fIsecret\fP can be specified
+at a time.

@@ -56,9 +56,11 @@ main.o: main.c $(SUBDIR)/*.h *.h
 	$(CC) $(CFLAGS) $(CSTD) $(COPTS) -c -o $@ $<
 
 install: $(PGM)
-	install -o root -g 0 -m 0711 $(PGM) $(PREFIX)/bin/
+	install -o root -g 0 -m 0444 $(PGM).1 $(PREFIX)/man/man1/
+	install -o root -g 0 -m 0511 $(PGM) $(PREFIX)/bin/
 
 uninstall:
+	rm -f $(PREFIX)/man/man1/$(PGM).1
 	rm -f $(PREFIX)/bin/$(PGM)
 
 package: clean
