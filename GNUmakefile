@@ -16,12 +16,14 @@
 # 
 # $Id$
 
+PREFIX?=/usr/local
+LOCALBASE?=/usr/local
 CC=gcc
 CFLAGS?=-g -Wall -pedantic
 LDFLAGS?=-g -Wall -pedantic
 CSTD=-std=c99
-COPTS?=-I/usr/local/include
-LDOPTS?=-L/usr/local/lib
+COPTS?=-I$(LOCALBASE)/include
+LDOPTS?=-L$(LOCALBASE)/lib
 LIBS=-lgcrypt -lnet
 
 PGM=fiked
@@ -53,6 +55,12 @@ main.o: main.c $(SUBDIR)/*.h *.h
 %.o: %.c %.h
 	$(CC) $(CFLAGS) $(CSTD) $(COPTS) -c -o $@ $<
 
+install: $(PGM)
+	install -o root -g 0 -m 0711 $(PGM) $(PREFIX)/bin/
+
+uninstall:
+	rm -f $(PREFIX)/bin/$(PGM)
+
 package: clean
 	svn -v log $(REPO) > ChangeLog
 	mkdir $(PGM)-$(VERSION) && \
@@ -62,10 +70,9 @@ package: clean
 	rm -r $(PGM)-$(VERSION)
 
 clean:
-	version=`cat VERSION` && \
-	rm -rf *.o *.a *.core *.log ChangeLog $(PGM)-$$version.tar.bz2 $(PGM)
+	rm -rf *.o *.a *.core *.log ChangeLog $(PGM)-$(VERSION).tar.bz2 $(PGM)
 	@CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" CSTD="$(CSTD)" \
 		COPTS="$(COPTS)" LDOPTS="$(LDOPTS)" LIBS="$(LIBS)" \
 		$(MAKE) -C $(SUBDIR) clean
 
-.PHONY: all package clean subdir
+.PHONY: all install uninstall package clean subdir

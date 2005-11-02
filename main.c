@@ -133,11 +133,11 @@ int main(int argc, char *argv[])
 	if(!(cfg->gateway && cfg->psk))
 		usage();
 
-	log_init(logfile, opt_quiet);
-
 	gcry_check_version("1.1.90");
 	gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
 	group_init();
+	test_pack_unpack();
+	log_init(logfile, opt_quiet);
 
 	cfg->us = udp_socket_new(IKE_PORT);
 

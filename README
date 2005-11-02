@@ -60,7 +60,7 @@ attack setup needs it or not.
 
 
 
-// Requirements
+// Installation
 
 You need these libraries to build and run fiked:
  * libgcrypt >= 1.1.90
@@ -71,6 +71,9 @@ You need these libraries to build and run fiked:
 Fiked has been developed and tested on FreeBSD.  You might need to do
 some minor tweaking to compile it on other platforms, but the code
 should be fairly standard C99.  Please do send me patches though.
+
+You should be able to build and install fiked by just running GNU
+make install (gmake on BSD).
 
 
 
