@@ -46,8 +46,8 @@ void usage()
 	fprintf(stderr, "\t-r\tuse raw socket: forge source address to match <gateway>\n");
 	fprintf(stderr, "\t-d\tdetach from tty and run as a daemon (implies -q)\n");
 	fprintf(stderr, "\t-q\tbe quiet, don't write anything to stdout\n");
-	fprintf(stderr, "\t-h\thelp\n");
-	fprintf(stderr, "\t-V\tprint version information\n");
+	fprintf(stderr, "\t-h\tprint help and exit\n");
+	fprintf(stderr, "\t-V\tprint version and exit\n");
 	fprintf(stderr, "\t-g gw\tVPN gateway address to impersonate\n");
 	fprintf(stderr, "\t-s psk\tshared secret aka. group password, pre shared key\n");
 	fprintf(stderr, "\t-l file\tappend results to credential log file\n");
