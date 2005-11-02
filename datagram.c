@@ -38,10 +38,10 @@ datagram * datagram_new(size_t size)
 {
 	if(size == 0)
 		size = UDP_DGM_MAXSIZE;
-	datagram *dgm = (datagram*)malloc(sizeof(datagram));
+	datagram *dgm = malloc(sizeof(datagram));
 	memset(dgm, 0, sizeof(datagram));
 	dgm->len = size;
-	dgm->data = (uint8_t*)malloc(dgm->len);
+	dgm->data = malloc(dgm->len);
 	memset(dgm->data, 0, sizeof(dgm->len));
 	return dgm;
 }

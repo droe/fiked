@@ -25,6 +25,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <stdio.h>
+
 /* message_iv */
 
 message_iv * message_iv_get(uint32_t id, message_iv **head)
@@ -52,6 +54,11 @@ void message_iv_free(message_iv *msg_iv)
 		message_iv_free(msg_iv->next);
 		msg_iv->next = NULL;
 	}
+	if(msg_iv->iv) {
+		free(msg_iv->iv);
+		msg_iv->iv = NULL;
+	}
+	free(msg_iv);
 }
 
 
@@ -98,7 +105,11 @@ void peer_ctx_clear(peer_ctx *ctx)
 		ctx->msg_iv = NULL;
 	}
 
-	FREE_CTX_MEMBER(dh_group);
+	if(ctx->dh_group) {
+		group_free(ctx->dh_group);
+		ctx->dh_group = NULL;
+	}
+
 	FREE_CTX_MEMBER(dh_i_public);
 	FREE_CTX_MEMBER(dh_r_public);
 	FREE_CTX_MEMBER(dh_secret);

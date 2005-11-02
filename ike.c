@@ -55,6 +55,12 @@
 /* forward declarations */
 void ike_process_new(peer_ctx *ctx, struct isakmp_packet *ikp);
 
+/* freeing malloc: must be wrapped in a block */
+#define MALLOC(x,s) \
+	if(x) \
+		free(x); \
+	x = malloc(s)
+
 /* minimum */
 static inline int min(int a, int b)
 {
@@ -125,7 +131,7 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 			gcry_md_write(md_ctx, ctx->dh_r_public,
 				dh_getlen(ctx->dh_group));
 			gcry_md_final(md_ctx);
-			ctx->iv0 = malloc(ctx->blk_len);
+			MALLOC(ctx->iv0, ctx->blk_len);
 			memcpy(ctx->iv0, gcry_md_read(md_ctx, 0), ctx->blk_len);
 			gcry_md_close(md_ctx);
 		}
@@ -144,7 +150,7 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 			gcry_md_putc(md_ctx, (ikp->message_id >> 8) & 0xFF);
 			gcry_md_putc(md_ctx, (ikp->message_id) & 0xFF);
 			gcry_md_final(md_ctx);
-			msg_iv->iv = malloc(ctx->md_len);
+			MALLOC(msg_iv->iv, ctx->md_len);
 			memcpy(msg_iv->iv, gcry_md_read(md_ctx, 0), ctx->blk_len);
 			gcry_md_close(md_ctx);
 		}
@@ -168,7 +174,7 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 		/* swap payload for encrypted buffer */
 		free_isakmp_payload(ikp->u.payload);
 		ikp->u.enc.length = fp_len;
-		ikp->u.enc.data = malloc(ikp->u.enc.length);
+		ikp->u.enc.data = malloc(ikp->u.enc.length); /* do not free */
 		memcpy(ikp->u.enc.data, fp, ikp->u.enc.length);
 		ikp->u.enc.type = fp_type;
 		/* update IV with last cipher block */
@@ -179,11 +185,11 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 		uint8_t *newiv = NULL;
 		/* copy encrypted buffer */
 		fp_len = ikp->u.enc.length;
-		fp = malloc(fp_len);
+		MALLOC(fp, fp_len);
 		memcpy(fp, ikp->u.enc.data, fp_len);
 		/* store last cipher block */
 		if(update_iv) {
-			newiv = malloc(ctx->blk_len);
+			MALLOC(newiv, ctx->blk_len);
 			memcpy(newiv, fp + fp_len - ctx->blk_len, ctx->blk_len);
 		}
 		/* decrypt encrypted buffer */
@@ -204,6 +210,8 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 			log_printf(ctx,
 				"illegal decrypted payload (%d), packet ignored",
 				reject);
+			free(fp);
+			fp = NULL;
 			return reject;
 		}
 		free(ikp->u.enc.data);
@@ -361,14 +369,20 @@ int sa_transform_matches(peer_ctx* ctx, struct isakmp_payload *t)
 	}
 	switch(group_desc->u.attr_16) {
 		case IKE_GROUP_MODP_768:
+			if(ctx->dh_group)
+				group_free(ctx->dh_group);
 			ctx->dh_group = group_get(OAKLEY_GRP_1);
 			dh_txt = "DH1";
 			break;
 		case IKE_GROUP_MODP_1024:
+			if(ctx->dh_group)
+				group_free(ctx->dh_group);
 			ctx->dh_group = group_get(OAKLEY_GRP_2);
 			dh_txt = "DH2";
 			break;
 		case IKE_GROUP_MODP_1536:
+			if(ctx->dh_group)
+				group_free(ctx->dh_group);
 			ctx->dh_group = group_get(OAKLEY_GRP_5);
 			dh_txt = "DH5";
 			break;
@@ -428,6 +442,21 @@ void sa_transform_choose(peer_ctx* ctx, struct isakmp_payload *response, struct 
 		}
 		*ra = *pa;
 		ra->next = NULL;
+		switch(ra->af) {
+			case isakmp_attr_lots:
+				/* don't free */
+				ra->u.lots.data = malloc(ra->u.lots.length);
+				memcpy(ra->u.lots.data, pa->u.lots.data, ra->u.lots.length);
+				break;
+			case isakmp_attr_acl:
+				/* don't free */
+				ra->u.acl.acl_ent = malloc(ra->u.acl.count*sizeof(*ra->u.acl.acl_ent));
+				memcpy(ra->u.acl.acl_ent, pa->u.acl.acl_ent, ra->u.acl.count*sizeof(*ra->u.acl.acl_ent));
+				break;
+			default:
+				/* ignore */
+				break;
+		}
 	}
 }
 
@@ -536,9 +565,12 @@ void ike_do_phase2_xauth_begin(peer_ctx *ctx)
 	r->u.payload->u.hash.data =
 		phase2_hash(ctx, r->message_id, r->u.payload->next);
 	ike_crypt(ctx, r);
+	free(dgm->data);
 	flatten_isakmp_packet(r, &dgm->data, &dgm->len, ctx->blk_len);
 	dgm->peer_addr = ctx->peer_addr;
 	send_datagram(ctx, dgm);
+	free_isakmp_packet(r);
+	datagram_free(dgm);
 }
 
 /*
@@ -551,18 +583,14 @@ void ike_do_phase2_xauth(peer_ctx *ctx, struct isakmp_packet *ikp)
 		ikp->u.payload->next->u.modecfg.attributes; a; a = a->next) {
 		switch(a->type) {
 			case ISAKMP_XAUTH_ATTRIB_USER_NAME:
-				if(ctx->xauth_username)
-					free(ctx->xauth_username);
-				ctx->xauth_username = malloc(a->u.lots.length + 1);
+				MALLOC(ctx->xauth_username, a->u.lots.length + 1);
 				memcpy(ctx->xauth_username, a->u.lots.data, a->u.lots.length);
 				ctx->xauth_username[a->u.lots.length] = '\0';
 				log_printf(ctx, "Xauth username: %s",
 					ctx->xauth_username);
 				break;
 			case ISAKMP_XAUTH_ATTRIB_USER_PASSWORD:
-				if(ctx->xauth_password)
-					free(ctx->xauth_password);
-				ctx->xauth_password = malloc(a->u.lots.length + 1);
+				MALLOC(ctx->xauth_password, a->u.lots.length + 1);
 				memcpy(ctx->xauth_password, a->u.lots.data, a->u.lots.length);
 				ctx->xauth_password[a->u.lots.length] = '\0';
 				log_printf(ctx, "Xauth password: %s",
@@ -612,9 +640,12 @@ void ike_do_phase2_xauth(peer_ctx *ctx, struct isakmp_packet *ikp)
 	r->u.payload->u.hash.data =
 		phase2_hash(ctx, r->message_id, r->u.payload->next);
 	ike_crypt(ctx, r);
+	free(dgm->data);
 	flatten_isakmp_packet(r, &dgm->data, &dgm->len, ctx->blk_len);
 	dgm->peer_addr = ctx->peer_addr;
 	send_datagram(ctx, dgm);
+	free_isakmp_packet(r);
+	datagram_free(dgm);
 }
 
 /*
@@ -730,9 +761,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 		case ISAKMP_IPSEC_ID_FQDN:
 		case ISAKMP_IPSEC_ID_USER_FQDN:
 		case ISAKMP_IPSEC_ID_KEY_ID:
-			if(ctx->ipsec_id)
-				free(ctx->ipsec_id);
-			ctx->ipsec_id = malloc(id->u.id.length + 1);
+			MALLOC(ctx->ipsec_id, id->u.id.length + 1);
 			memcpy(ctx->ipsec_id, id->u.id.data, id->u.id.length);
 			ctx->ipsec_id[id->u.id.length] = '\0';
 			log_printf(ctx, "IPSec ID: %s",
@@ -755,21 +784,25 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	/* grab i_sa */
 	struct isakmp_payload *tmp = sa->next;
 	sa->next = NULL;
+	if(ctx->i_sa)
+		free(ctx->i_sa);
 	flatten_isakmp_payload(sa, &ctx->i_sa, &ctx->i_sa_len, 1);
 	sa->next = tmp;
 
 	/* grab dh_i_public */
-	ctx->dh_i_public = malloc(ke->u.ke.length);
+	MALLOC(ctx->dh_i_public, ke->u.ke.length);
 	memcpy(ctx->dh_i_public, ke->u.ke.data, ke->u.ke.length);
 
 	/* grab i_nonce */
-	ctx->i_nonce = malloc(nonce->u.nonce.length);
+	MALLOC(ctx->i_nonce, nonce->u.nonce.length);
 	ctx->i_nonce_len = nonce->u.nonce.length;
 	memcpy(ctx->i_nonce, nonce->u.nonce.data, nonce->u.nonce.length);
 
 	/* grab i_id */
 	tmp = id->next;
 	id->next = NULL;
+	if(ctx->i_id)
+		free(ctx->i_id);
 	flatten_isakmp_payload(id, &ctx->i_id, &ctx->i_id_len, 1);
 	id->next = tmp;
 
@@ -778,7 +811,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 	/* generate r_nonce */
 	ctx->r_nonce_len = ctx->i_nonce_len;
-	ctx->r_nonce = malloc(ctx->r_nonce_len);
+	MALLOC(ctx->r_nonce, ctx->r_nonce_len);
 	gcry_create_nonce(ctx->r_nonce, ctx->r_nonce_len);
 
 	/* header */
@@ -796,9 +829,9 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	struct isakmp_payload *p = r->u.payload;
 
 	/* complete dh key exchange */
-	ctx->dh_r_public = malloc(dh_getlen(ctx->dh_group));
+	MALLOC(ctx->dh_r_public, dh_getlen(ctx->dh_group));
 	dh_create_exchange(ctx->dh_group, ctx->dh_r_public);
-	ctx->dh_secret = malloc(dh_getlen(ctx->dh_group));
+	MALLOC(ctx->dh_secret, dh_getlen(ctx->dh_group));
 	dh_create_shared(ctx->dh_group, ctx->dh_secret, ctx->dh_i_public);
 
 	/* payload: ke */
@@ -815,8 +848,12 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	p->u.id.protocol = IPPROTO_UDP;
 	p->u.id.port = IKE_PORT;
 	p->u.id.length = sizeof(in_addr_t);
-	p->u.id.data = malloc(p->u.id.length);
+	MALLOC(p->u.id.data, p->u.id.length);
 	*((in_addr_t*)p->u.id.data) = inet_addr(ctx->cfg->gateway);
+
+	/* grab id_r */
+	if(ctx->r_id)
+		free(ctx->r_id);
 	flatten_isakmp_payload(p, &ctx->r_id, &ctx->r_id_len, 1);
 
 	/*
@@ -834,7 +871,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	gcry_md_write(md_ctx, ctx->i_nonce, ctx->i_nonce_len);
 	gcry_md_write(md_ctx, ctx->r_nonce, ctx->r_nonce_len);
 	gcry_md_final(md_ctx);
-	ctx->skeyid = malloc(ctx->md_len);
+	MALLOC(ctx->skeyid, ctx->md_len);
 	memcpy(ctx->skeyid, gcry_md_read(md_ctx, 0), ctx->md_len);
 	gcry_md_close(md_ctx);
 
@@ -846,7 +883,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	gcry_md_write(md_ctx, ctx->r_cookie, ISAKMP_COOKIE_LENGTH);
 	gcry_md_putc(md_ctx, 0);
 	gcry_md_final(md_ctx);
-	ctx->skeyid_d = malloc(ctx->md_len);
+	MALLOC(ctx->skeyid_d, ctx->md_len);
 	memcpy(ctx->skeyid_d, gcry_md_read(md_ctx, 0), ctx->md_len);
 	gcry_md_close(md_ctx);
 
@@ -859,7 +896,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	gcry_md_write(md_ctx, ctx->r_cookie, ISAKMP_COOKIE_LENGTH);
 	gcry_md_putc(md_ctx, 1);
 	gcry_md_final(md_ctx);
-	ctx->skeyid_a = malloc(ctx->md_len);
+	MALLOC(ctx->skeyid_a, ctx->md_len);
 	memcpy(ctx->skeyid_a, gcry_md_read(md_ctx, 0), ctx->md_len);
 	gcry_md_close(md_ctx);
 
@@ -872,12 +909,12 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	gcry_md_write(md_ctx, ctx->r_cookie, ISAKMP_COOKIE_LENGTH);
 	gcry_md_putc(md_ctx, 2);
 	gcry_md_final(md_ctx);
-	ctx->skeyid_e = malloc(ctx->md_len);
+	MALLOC(ctx->skeyid_e, ctx->md_len);
 	memcpy(ctx->skeyid_e, gcry_md_read(md_ctx, 0), ctx->md_len);
 	gcry_md_close(md_ctx);
 
 	/* encryption key */
-	ctx->key = malloc(ctx->key_len);
+	MALLOC(ctx->key, ctx->key_len);
 	if(ctx->key_len > ctx->md_len) {
 		for(int i = 0; i * ctx->md_len < ctx->key_len; i++) {
 			gcry_md_open(&md_ctx, ctx->md_algo, GCRY_MD_FLAG_HMAC);
@@ -914,7 +951,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	gcry_md_write(i_hash_ctx, ctx->i_sa + 4, ctx->i_sa_len - 4);
 	gcry_md_write(i_hash_ctx, ctx->i_id + 4, ctx->i_id_len - 4);
 	gcry_md_final(i_hash_ctx);
-	ctx->i_hash = malloc(ctx->md_len);
+	MALLOC(ctx->i_hash, ctx->md_len);
 	memcpy(ctx->i_hash, gcry_md_read(i_hash_ctx, 0), ctx->md_len);
 	gcry_md_close(i_hash_ctx);
 
@@ -929,7 +966,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	gcry_md_write(r_hash_ctx, ctx->i_sa + 4, ctx->i_sa_len - 4);
 	gcry_md_write(r_hash_ctx, ctx->r_id + 4, ctx->r_id_len - 4);
 	gcry_md_final(r_hash_ctx);
-	ctx->r_hash = malloc(ctx->md_len);
+	MALLOC(ctx->r_hash, ctx->md_len);
 	memcpy(ctx->r_hash, gcry_md_read(r_hash_ctx, 0), ctx->md_len);
 	gcry_md_close(r_hash_ctx);
 
@@ -947,9 +984,12 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 	/* send response */
 	datagram *dgm = datagram_new(0);
-	flatten_isakmp_packet(r, &dgm->data, &dgm->len, ctx->blk_len); /* 8 */
+	free(dgm->data);
+	flatten_isakmp_packet(r, &dgm->data, &dgm->len, ctx->blk_len);
 	dgm->peer_addr = ctx->peer_addr;
 	send_datagram(ctx, dgm);
+	free_isakmp_packet(r);
+	datagram_free(dgm);
 
 	ctx->state = STATE_PHASE1;
 }

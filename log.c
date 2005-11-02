@@ -64,6 +64,7 @@ void log_do_printf(const char *fmt, ...)
 	if(!quiet) {
 		fprintf(stdout, "%s", buf);
 	}
+	free(buf);
 }
 
 void log_do_flush()
@@ -97,6 +98,7 @@ void log_printf(peer_ctx *ctx, const char *fmt, ...)
 	}
 	log_do_printf("%s\n", buf);
 	log_do_flush();
+	free(buf);
 }
 
 void log_cleanup()

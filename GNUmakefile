@@ -55,7 +55,10 @@ main.o: main.c $(SUBDIR)/*.h *.h
 %.o: %.c %.h
 	$(CC) $(CFLAGS) $(CSTD) $(COPTS) -c -o $@ $<
 
-install: $(PGM)
+strip: $(PGM)
+	strip -g $^
+
+install: strip
 	install -o root -g 0 -m 0444 $(PGM).1 $(PREFIX)/man/man1/
 	install -o root -g 0 -m 0511 $(PGM) $(PREFIX)/bin/
 
