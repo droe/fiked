@@ -31,7 +31,6 @@ OBJS=config.o datagram.o send_dgm.o peer_ctx.o results.o log.o ike.o main.o
 SUBDIR=vpnc
 SUBLIB=lib$(SUBDIR).a
 
-REPO=svn://projects.roe.ch/repos/$(PGM)
 URL=http://www.roe.ch/FakeIKEd
 VERSION=$(shell cat VERSION)
 
@@ -67,9 +66,8 @@ uninstall:
 	rm -f $(PREFIX)/bin/$(PGM)
 
 package: clean
-	svn -v log $(REPO) > ChangeLog
 	mkdir $(PGM)-$(VERSION) && \
-	tar -c -f - `find . -type f | grep -v svn | grep -v captures` \
+	tar -c -f - `find . -type f | grep -v svn` \
 		| tar -x -C $(PGM)-$(VERSION)/ -f - && \
 	tar cvfy $(PGM)-$(VERSION).tar.bz2 $(PGM)-$(VERSION) && \
 	rm -r $(PGM)-$(VERSION)
