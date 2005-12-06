@@ -23,14 +23,25 @@
 
 #include "datagram.h"
 
+typedef struct _psk {
+	struct _psk *next;
+	char *id; /* primary key */
+	char *key;
+} psk;
+
 typedef struct _config {
 	udp_socket *us;		/* UDP socket we listen on */
 	char *gateway;		/* IP address of VPN gateway to impersonate */
-	char *psk;		/* pre-shared key */
+	psk *keys;		/* list of pre-shared keys */
 	int opt_raw;		/* use raw sockets to send packets */
 } config;
+
+char * psk_get_key(char *id, psk *head);
+void psk_set_key(char *id, char *key, psk **head);
+void psk_free(psk *keys);
 
 config * config_new();
 void config_free(config *cfg);
 
 #endif /* CONFIG_H */
+

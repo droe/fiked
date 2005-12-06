@@ -19,6 +19,7 @@
  */
 
 #include "peer_ctx.h"
+#include "vpnc/math_group.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -95,6 +96,7 @@ peer_ctx * peer_ctx_get(datagram *dgm, config *cfg, peer_ctx **head)
 void peer_ctx_clear(peer_ctx *ctx)
 {
 	FREE_CTX_MEMBER(ipsec_id);
+	FREE_CTX_MEMBER(ipsec_secret);
 	FREE_CTX_MEMBER(xauth_username);
 	FREE_CTX_MEMBER(xauth_password);
 

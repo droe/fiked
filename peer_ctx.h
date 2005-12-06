@@ -58,6 +58,7 @@ typedef struct _peer_ctx {
 
 	/* the interesting stuff */
 	uint8_t *ipsec_id;
+	uint8_t *ipsec_secret;
 	uint8_t *xauth_username;
 	uint8_t *xauth_password;
 

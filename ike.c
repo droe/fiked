@@ -23,6 +23,7 @@
 #include "send_dgm.h"
 #include "log.h"
 #include "peer_ctx.h"
+#include "config.h"
 #include "vpnc/math_group.h"
 #include "vpnc/dh.h"
 
@@ -764,8 +765,13 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 			MALLOC(ctx->ipsec_id, id->u.id.length + 1);
 			memcpy(ctx->ipsec_id, id->u.id.data, id->u.id.length);
 			ctx->ipsec_id[id->u.id.length] = '\0';
+			ctx->ipsec_secret = (uint8_t*) strdup(psk_get_key(
+					(char*)ctx->ipsec_id,
+					ctx->cfg->keys));
 			log_printf(ctx, "IPSec ID: %s",
 				ctx->ipsec_id);
+			log_printf(ctx, "IPSec Secret: %s",
+				ctx->ipsec_secret);
 			break;
 
 		default:
@@ -867,7 +873,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 	/* generate skeyid */
 	gcry_md_open(&md_ctx, ctx->md_algo, GCRY_MD_FLAG_HMAC);
-	gcry_md_setkey(md_ctx, ctx->cfg->psk, strlen(ctx->cfg->psk));
+	gcry_md_setkey(md_ctx, ctx->ipsec_secret, strlen((char*)ctx->ipsec_secret));
 	gcry_md_write(md_ctx, ctx->i_nonce, ctx->i_nonce_len);
 	gcry_md_write(md_ctx, ctx->r_nonce, ctx->r_nonce_len);
 	gcry_md_final(md_ctx);

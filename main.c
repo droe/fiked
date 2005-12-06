@@ -43,14 +43,14 @@
 char *self;
 void usage()
 {
-	fprintf(stderr, "Usage: %s [-rdqhV] -g <gateway> -k <secret> [-l <file>] [-L <file>]\n", self);
+	fprintf(stderr, "Usage: %s [-rdqhV] -g gateway -k id:psk [-k ...] [-l file] [-L file]\n", self);
 	fprintf(stderr, "\t-r\tuse raw socket: forge source address to match <gateway>\n");
 	fprintf(stderr, "\t-d\tdetach from tty and run as a daemon (implies -q)\n");
 	fprintf(stderr, "\t-q\tbe quiet, don't write anything to stdout\n");
 	fprintf(stderr, "\t-h\tprint help and exit\n");
 	fprintf(stderr, "\t-V\tprint version and exit\n");
 	fprintf(stderr, "\t-g gw\tVPN gateway address to impersonate\n");
-	fprintf(stderr, "\t-k psk\tpre-shared key aka. group password, shared secret\n");
+	fprintf(stderr, "\t-k i:k\tpre-shared key aka. group password, shared secret, prefixed\n\t\twith its group/key id (first -k sets default)\n");
 	fprintf(stderr, "\t-l file\tappend results to credential log file\n");
 	fprintf(stderr, "\t-L file\tverbous logging to file instead of stdout\n");
 	exit(-1);
@@ -111,22 +111,31 @@ int main(int argc, char *argv[])
 	char *logfile = NULL;
 	int opt_quiet = 0;
 	int opt_daemon = 0;
+	char *p = NULL;
+	int k_valid = 0;
 	while((ch = getopt(argc, argv, "g:k:l:L:drqhV")) != -1) {
 		switch(ch) {
 		case 'g':
-			cfg->gateway = malloc(strlen(optarg));
-			strcpy(cfg->gateway, optarg);
+			cfg->gateway = strdup(optarg);
 			break;
 		case 'k':
-			cfg->psk = malloc(strlen(optarg));
-			strcpy(cfg->psk, optarg);
+			k_valid = 0;
+			for(p = optarg; *p; p++) {
+				if(*p == ':') {
+					*p++ = '\0';
+					k_valid = 1;
+					break;
+				}
+			}
+			if(!k_valid)
+				usage();
+			psk_set_key(optarg, p, &cfg->keys);
 			break;
 		case 'l':
 			results_init(optarg);
 			break;
 		case 'L':
-			logfile = malloc(strlen(optarg));
-			strcpy(logfile, optarg);
+			logfile = strdup(optarg);
 			break;
 		case 'd':
 			opt_quiet = 1;
@@ -153,7 +162,7 @@ int main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if(!(cfg->gateway && cfg->psk))
+	if(!(cfg->gateway && cfg->keys))
 		usage();
 
 	gcry_check_version("1.1.90");

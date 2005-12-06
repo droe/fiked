@@ -28,8 +28,7 @@ fiked \- a fake IKE PSK+XAUTH daemon based on vpnc
 .B \-g
 .I gateway
 .B \-k
-.I secret
-[
+\fIid\fP\fB:\fP\fIsecret\fP [
 .B \-l
 .I file
 ] [
@@ -71,8 +70,12 @@ is used.
 Display help and exit.
 .TP
 .B \-k
-Use \fIsecret\fP as pre-shared key in phase 1 authentication.  Note that
-specifying the \fIsecret\fP on the command line potentially exposes it to
+Use \fIsecret\fP with key/group id \fIid\fP as pre-shared key in phase 1
+authentication.  This option may be used multiple times, each time
+specifying a different \fIid\fP, \fIsecret\fP pair.
+\fIFiked\fP will use the key id specified by a client to choose a
+matching \fIsecret\fP, or the first one if none matches.
+Note that specifying \fIsecret\fP's on the command line exposes them to
 other users on the system.
 .TP
 .B \-l
@@ -97,18 +100,19 @@ particular attack setup does not rewrite the packets traveling from
 Display version information and exit.
 .SH EXAMPLES
 .LP
-To impersonate \fIgateway\fP 10.0.0.1 using \fIsecret\fP g3h31m,
-writing results to \fIfile\fP account.log:
+To impersonate \fIgateway\fP 10.0.0.1 using \fIsecret\fPs for group
+\fIid\fPs group1 and group2, writing results to \fIfile\fP account.log:
 .RS
 .nf
-\fBfiked -g 10.0.0.1 -k g3h31m -l account.log\fP
+\fBfiked -g 10.0.0.1 -k group1:g3h31m -k group2:s3kr3t -l account.log\fP
 .fi
 .RE
 .LP
-The same, but running as a daemon and logging to \fIfile\fP fiked.log:
+The same with only one key, and running as a daemon logging to
+\fIfile\fP fiked.log:
 .RS
 .nf
-\fBfiked -g 10.0.0.1 -k g3h31m -l account.log -d -L fiked.log\fP
+\fBfiked -g 10.0.0.1 -k group1:g3h31m -l account.log -d -L fiked.log\fP
 .fi
 .RE
 .SH "SEE ALSO"
@@ -122,5 +126,9 @@ clones like vpnc, but nowhere near complete.
 .LP
 Main mode is not supported.
 .LP
-Only a single \fIgateway\fP address and shared \fIsecret\fP can be specified
-at a time.
+Only a single \fIgateway\fP address can be specified.
+.LP
+There is no priviledge separation or dropping of priviledges.
+.LP
+\fISecret\fPs can only be specified as command line arguments, which
+potentially exposes them to other users on the system.

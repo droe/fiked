@@ -51,7 +51,7 @@ void results_add(peer_ctx *ctx)
 		strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S %z",
 			localtime(&epoch));
 		fprintf(file, "%s %s %s %s %s %s %s\n", timestamp,
-			ctx->cfg->gateway, ctx->ipsec_id, ctx->cfg->psk,
+			ctx->cfg->gateway, ctx->ipsec_id, ctx->ipsec_secret,
 			inet_ntoa(ctx->peer_addr.sin_addr),
 			ctx->xauth_username, ctx->xauth_password);
 		fflush(file);
