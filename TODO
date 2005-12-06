@@ -1,5 +1,5 @@
  * implement main mode
- * priviledge separation or drop priviledges to unpriviledged user
+ * privilege separation or drop privileges to unprivileged user
  * -s sniffing option using libpcap
  * check on the nonce in phase2_hash
  * code cleanup: replace all those ugly linked lists with real, generic
