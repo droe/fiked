@@ -22,8 +22,8 @@ CC=gcc
 CFLAGS?=-g -Wall -pedantic
 LDFLAGS?=-g -Wall -pedantic
 CSTD=-std=c99
-COPTS?=-I$(LOCALBASE)/include
-LDOPTS?=-L$(LOCALBASE)/lib
+COPTS=-I$(LOCALBASE)/include
+LDOPTS=-L$(LOCALBASE)/lib
 LIBS=-lgcrypt -lnet
 
 PGM=fiked
@@ -40,8 +40,8 @@ $(PGM): $(OBJS) $(SUBLIB)
 	$(CC) $(LDFLAGS) $(LDOPTS) -o $@ $^ $(LIBS)
 
 subdir:
-	@CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" CSTD="$(CSTD)" \
-		COPTS="$(COPTS)" LDOPTS="$(LDOPTS)" LIBS="$(LIBS)" \
+	@CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" \
+		CSTD="$(CSTD)" COPTS="$(COPTS)" LDOPTS="$(LDOPTS)" \
 		$(MAKE) -C $(SUBDIR) all
 
 $(SUBLIB): subdir

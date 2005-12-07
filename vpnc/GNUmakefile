@@ -23,7 +23,6 @@ LDFLAGS?=-g -Wall -pedantic
 CSTD?=-std=c99
 COPTS?=-I/usr/local/include
 LDOPTS?=-L/usr/local/lib
-LIBS?=-lgcrypt
 
 all: libvpnc.a
 
