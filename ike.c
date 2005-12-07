@@ -1098,7 +1098,12 @@ void ike_process_new(peer_ctx *ctx, struct isakmp_packet *ikp)
 			log_printf(ctx, "IKE session initiated");
 			ike_do_phase1(ctx, ikp);
 			break;
-
+/*
+		case ISAKMP_EXCHANGE_MAIN:
+			log_printf(ctx, "IKE session initiated (main mode)");
+			ike_do_phase1_main1(ctx, ikp);
+			break;
+*/
 		case ISAKMP_EXCHANGE_INFORMATIONAL:
 			ike_process_informational(ctx, ikp);
 			break;
@@ -1122,8 +1127,10 @@ void ike_process_new(peer_ctx *ctx, struct isakmp_packet *ikp)
  */
 void ike_process_isakmp(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
-	/* need some mechanism to clean out old states after some time */
-	/* maybe: if r_cookie == 0, reset to STATE_NEW */
+	/*
+	 * need some (simple) mechanism to clean out old states after
+	 * some time, maybe: if r_cookie == 0, reset to STATE_NEW
+	 */
 
 	switch(ctx->state) {
 		case STATE_NEW:
