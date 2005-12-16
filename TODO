@@ -1,3 +1,5 @@
+ * make libnet support optional, controlled by WITH_LIBNET knob
+ * migrate port from BROKEN to USE_GCC=3.2+
  * implement main mode
  * privilege separation or drop privileges to unprivileged user
  * -s sniffing option using libpcap
