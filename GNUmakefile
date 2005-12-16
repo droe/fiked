@@ -18,7 +18,7 @@
 
 PREFIX?=/usr/local
 LOCALBASE?=/usr/local
-CC=gcc
+CC?=gcc
 CFLAGS?=-g -Wall -pedantic
 LDFLAGS?=-g -Wall -pedantic
 CSTD=-std=c99
