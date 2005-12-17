@@ -43,8 +43,12 @@
 char *self;
 void usage()
 {
+#ifdef WITH_LIBNET
 	fprintf(stderr, "Usage: %s [-rdqhV] -g gateway -k id:psk [-k ...] [-l file] [-L file]\n", self);
 	fprintf(stderr, "\t-r\tuse raw socket: forge source address to match <gateway>\n");
+#else
+	fprintf(stderr, "Usage: %s [-dqhV] -g gateway -k id:psk [-k ...] [-l file] [-L file]\n", self);
+#endif
 	fprintf(stderr, "\t-d\tdetach from tty and run as a daemon (implies -q)\n");
 	fprintf(stderr, "\t-q\tbe quiet, don't write anything to stdout\n");
 	fprintf(stderr, "\t-h\tprint help and exit\n");
@@ -83,7 +87,11 @@ int duplicate(peer_ctx *ctx, datagram *dgm)
 void status(config *cfg, peer_ctx *ctx)
 {
 	static uint32_t count = 0;
+#ifdef WITH_LIBNET
 	char *raw_txt = cfg->opt_raw ? "+raw" : "";
+#else
+	char *raw_txt = "";
+#endif
 	if(!ctx) {
 		log_printf(NULL, "fiked-%s started (%d/udp%s)", VERSION,
 			cfg->us->port, raw_txt);
@@ -106,6 +114,11 @@ int main(int argc, char *argv[])
 
 	umask(0077);
 
+#ifdef WITH_LIBNET
+#define OPTIONS "g:k:l:L:drqhV"
+#else
+#define OPTIONS "g:k:l:L:dqhV"
+#endif
 	int ch;
 	config *cfg = config_new();
 	char *logfile = NULL;
@@ -113,7 +126,7 @@ int main(int argc, char *argv[])
 	int opt_daemon = 0;
 	char *p = NULL;
 	int k_valid = 0;
-	while((ch = getopt(argc, argv, "g:k:l:L:drqhV")) != -1) {
+	while((ch = getopt(argc, argv, OPTIONS)) != -1) {
 		switch(ch) {
 		case 'g':
 			cfg->gateway = strdup(optarg);
@@ -141,9 +154,11 @@ int main(int argc, char *argv[])
 			opt_quiet = 1;
 			opt_daemon = 1;
 			break;
+#ifdef WITH_LIBNET
 		case 'r':
 			cfg->opt_raw = 1;
 			break;
+#endif
 		case 'q':
 			opt_quiet = 1;
 			break;

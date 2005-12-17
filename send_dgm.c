@@ -21,6 +21,7 @@
 #include "send_dgm.h"
 #include "log.h"
 #include "ike.h"
+#ifdef WITH_LIBNET
 #include <libnet.h>
 
 /*
@@ -58,15 +59,21 @@ void raw_send(datagram *dgm, char *shost, uint16_t sport)
 	libnet_destroy(lnet);
 }
 
+#endif /* WITH_LIBNET */
+
 /*
  * Send a datagram, using either raw sockets or UDP socket, depending on opt_raw.
  */
 void send_datagram(peer_ctx *ctx, datagram *dgm)
 {
+#ifdef WITH_LIBNET
 	if(ctx->cfg->opt_raw) {
 		raw_send(dgm, ctx->cfg->gateway, IKE_PORT);
 	} else {
 		udp_socket_send(ctx->cfg->us, dgm);
 	}
+#else
+	udp_socket_send(ctx->cfg->us, dgm);
+#endif
 }
 

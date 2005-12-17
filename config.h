@@ -33,7 +33,9 @@ typedef struct _config {
 	udp_socket *us;		/* UDP socket we listen on */
 	char *gateway;		/* IP address of VPN gateway to impersonate */
 	psk *keys;		/* list of pre-shared keys */
+#ifdef WITH_LIBNET
 	int opt_raw;		/* use raw sockets to send packets */
+#endif
 } config;
 
 char * psk_get_key(char *id, psk *head);

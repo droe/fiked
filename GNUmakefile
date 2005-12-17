@@ -24,7 +24,12 @@ LDFLAGS?=-g -Wall -pedantic
 CSTD=-std=c99
 COPTS=-I$(LOCALBASE)/include
 LDOPTS=-L$(LOCALBASE)/lib
-LIBS=-lgcrypt -lnet
+LIBS=-lgcrypt
+
+ifndef WITHOUT_LIBNET
+LIBS+=-lnet
+COPTS+=-DWITH_LIBNET
+endif
 
 PGM=fiked
 OBJS=config.o datagram.o send_dgm.o peer_ctx.o results.o log.o ike.o main.o

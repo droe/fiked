@@ -95,6 +95,8 @@ Forge the source address on sent packets to match \fIgateway\fP.  This
 uses a raw socket to send the packets.  Use this option if your
 particular attack setup does not rewrite the packets traveling from
 \fIfiked\fP back to clients.
+This option is not available if \fIfiked\fP was built without libnet
+support.
 .TP
 .B \-V
 Display version information and exit.

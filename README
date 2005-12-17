@@ -63,7 +63,7 @@ attack setup needs it or not.
 You need these libraries to build and run fiked:
  * libgcrypt >= 1.1.90
    http://directory.fsf.org/security/libgcrypt.html
- * libnet >= 1.1.0
+ * libnet >= 1.1.0 (optional)
    http://www.packetfactory.net/projects/libnet/
 
 Fiked has been developed and tested on FreeBSD.  You might need to do
@@ -72,6 +72,10 @@ should be fairly standard C99.  Please do send me patches though.
 
 You should be able to build and install fiked by just running GNU
 make install (gmake on BSD).
+
+By defining WITHOUT_LIBNET, you can omit libnet support, which will
+remove the dependency on libnet, and will give you a fiked which does
+not support sending replies with forged source address (-r option).
 
 
 
