@@ -18,6 +18,7 @@
  * $Id$
  */
 
+#include "bsd.h"
 #include "results.h"
 #include "log.h"
 #include "datagram.h"
@@ -39,6 +40,10 @@
 #include <unistd.h>
 
 #include <gcrypt.h>
+
+#ifndef __BSD__
+#include <getopt.h>
+#endif
 
 char *self;
 void usage()
@@ -80,6 +85,13 @@ int duplicate(peer_ctx *ctx, datagram *dgm)
 	return dup;
 }
 
+#ifndef __BSD__
+void setproctitle(const char *fmt, ...)
+{
+	/* FIXME: add setproctitle replacement of sorts here */
+}
+#endif
+
 /*
  * Signal status to outside by setting the process title.
  * If ctx is set, logs credentials to results file.
@@ -110,8 +122,9 @@ void status(config *cfg, peer_ctx *ctx)
 int main(int argc, char *argv[])
 {
 	self = argv[0];
-	_malloc_options = "X";	/* drop core on memory allocation errors */
-
+#ifdef __BSD__
+	_malloc_options = "X";	/* call abort(3) on memory allocation errors */
+#endif
 	umask(0077);
 
 #ifdef WITH_LIBNET
