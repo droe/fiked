@@ -66,12 +66,12 @@ You need these libraries to build and run fiked:
  * libnet >= 1.1.0 (optional)
    http://www.packetfactory.net/projects/libnet/
 
-Fiked has been developed and tested on FreeBSD.  You might need to do
-some minor tweaking to compile it on other platforms, but the code
-should be fairly standard C99.  Please do send me patches though.
-
 You should be able to build and install fiked by just running GNU
-make install (gmake on BSD).
+make install (gmake on BSD) on systems with a C99 capable GCC.
+
+Fiked has been developed and tested on FreeBSD, and it builds on Linux
+too.  You might need to do some tweaking to compile it on other
+platforms.  Please do send me patches.
 
 By defining WITHOUT_LIBNET, you can omit libnet support, which will
 remove the dependency on libnet, and will give you a fiked which does
