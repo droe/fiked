@@ -39,6 +39,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pwd.h>
 
 #include <gcrypt.h>
 
@@ -50,10 +51,12 @@ char *self;
 void usage()
 {
 #ifdef WITH_LIBNET
-	fprintf(stderr, "Usage: %s [-rdqhV] -g gateway -k id:psk [-k ...] [-l file] [-L file]\n", self);
-	fprintf(stderr, "\t-r\tuse raw socket: forge source address to match <gateway>\n");
+#define OPTIONS "g:k:u:l:L:rdqhV"
+	fprintf(stderr, "Usage: %s [-rdqhV] -g gw -k id:psk [-k ..] [-u user] [-l file] [-L file]\n", self);
+	fprintf(stderr, "\t-r\tuse raw socket: forge ip src addr to match <gateway> (disables -u)\n");
 #else
-	fprintf(stderr, "Usage: %s [-dqhV] -g gateway -k id:psk [-k ...] [-l file] [-L file]\n", self);
+#define OPTIONS "g:k:u:l:L:dqhV"
+	fprintf(stderr, "Usage: %s [-dqhV] -g gw -k id:psk [-k ..] [-u user] [-l file] [-L file]\n", self);
 #endif
 	fprintf(stderr, "\t-d\tdetach from tty and run as a daemon (implies -q)\n");
 	fprintf(stderr, "\t-q\tbe quiet, don't write anything to stdout\n");
@@ -61,6 +64,7 @@ void usage()
 	fprintf(stderr, "\t-V\tprint version and exit\n");
 	fprintf(stderr, "\t-g gw\tVPN gateway address to impersonate\n");
 	fprintf(stderr, "\t-k i:k\tpre-shared key aka. group password, shared secret, prefixed\n\t\twith its group/key id (first -k sets default)\n");
+	fprintf(stderr, "\t-u user\tdrop privileges; setuid() to unprivileged user\n");
 	fprintf(stderr, "\t-l file\tappend results to credential log file\n");
 	fprintf(stderr, "\t-L file\tverbous logging to file instead of stdout\n");
 	exit(-1);
@@ -119,26 +123,61 @@ void status(config *cfg, peer_ctx *ctx)
 }
 
 /*
+ * Look up a user in the user database and return the user's uid.
+ */
+inline uid_t getuidbyname(const char * user)
+{
+	struct passwd * pw = getpwnam(user);
+	if(!pw) {
+		fprintf(stderr, "No such user: %s\n", user);
+		exit(-1);
+	}
+	uid_t uid = pw->pw_uid;
+	endpwent();
+	return uid;
+}
+
+/*
+ * Initialize libgrypt.
+ * INIT_SECMEM drops privileges, so we disable secure memory if we
+ * need root privileges later on (eg. for libnet to open raw sockets).
+ * Since we don't put our own secrets in secure memory, we don't have
+ * to worry about libgcrypt using secure memory or not.
+ */
+inline void init_gcrypt(int need_root)
+{
+	gcry_control(GCRYCTL_SUSPEND_SECMEM_WARN);
+	if(!gcry_check_version(GCRYPT_VERSION)) {
+		fprintf(stderr, "libgcrypt version mismatch! (expected: "
+			GCRYPT_VERSION ")");
+		exit(-1);
+	}
+	if(!need_root) {
+		gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
+	} else {
+		gcry_control(GCRYCTL_DISABLE_SECMEM, 0);
+	}
+	gcry_control(GCRYCTL_INITIALIZATION_FINISHED, 0);
+}
+
+/*
  * Option processing and main loop.
  */
 int main(int argc, char *argv[])
 {
+	setproctitle("initializing");
 	self = argv[0];
 	umask(0077);
 
-#ifdef WITH_LIBNET
-#define OPTIONS "g:k:l:L:drqhV"
-#else
-#define OPTIONS "g:k:l:L:dqhV"
-#endif
-	int ch;
 	config *cfg = config_new();
 	char *logfile = NULL;
+	int ch = 0;
 	int opt_quiet = 0;
 	int opt_daemon = 0;
 	int need_root = 0;
 	char *p = NULL;
 	int k_valid = 0;
+	uid_t uid = 0;
 	while((ch = getopt(argc, argv, OPTIONS)) != -1) {
 		switch(ch) {
 		case 'g':
@@ -156,6 +195,11 @@ int main(int argc, char *argv[])
 			if(!k_valid)
 				usage();
 			psk_set_key(optarg, p, &cfg->keys);
+			break;
+		case 'u':
+			uid = strtol(optarg, 0, 0);
+			if(!uid)
+				uid = getuidbyname(optarg);
 			break;
 		case 'l':
 			results_init(optarg);
@@ -197,33 +241,12 @@ int main(int argc, char *argv[])
 	group_init();
 	test_pack_unpack();
 	log_init(logfile, opt_quiet);
-
 	cfg->us = udp_socket_new(IKE_PORT);
-
-	/*
-	 * INIT_SECMEM drops privileges, so we disable secure memory if we
-	 * need root privileges later on (eg. for libnet to open raw sockets).
-	 * Since we don't put our own secrets in secure memory, we don't have
-	 * to worry about libgcrypt using secure memory or not.
-	 */
-	gcry_control(GCRYCTL_SUSPEND_SECMEM_WARN);
-	if(!gcry_check_version( GCRYPT_VERSION /*"1.1.90"*/)) {
-		log_printf(NULL, "ERROR: libgcrypt version mismatch! (expected: " GCRYPT_VERSION ")");
-		exit(-1);
-	}
-	if(!need_root) {
-		gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
-	} else {
-		gcry_control(GCRYCTL_DISABLE_SECMEM, 0);
-	}
-	gcry_control(GCRYCTL_INITIALIZATION_FINISHED, 0);
-
+	init_gcrypt(need_root);
 	if(opt_daemon)
 		daemon(0, 0);
-
 	if(!need_root)
-		setuid(getuid());
-
+		setuid(uid ? uid : getuid());
 	status(cfg, NULL);
 
 	peer_ctx *peers = NULL;
