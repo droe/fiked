@@ -1,20 +1,7 @@
- * catch SIGINT and SIGTERM, and shut down gracefully
- * fix invalid free() in VPNC isakmp-pkt.c:
-   ==10670== Invalid free() / delete / delete[]
-   ==10670==    at 0x3C04068B: free (in /usr/local/lib/valgrind/vgpreload_memcheck.so)
-   ==10670==    by 0x804E257: free_isakmp_payload (isakmp-pkt.c:368)
-   ==10670==    by 0x804E241: free_isakmp_payload (isakmp-pkt.c:365)
-   ==10670==    by 0x804E448: free_isakmp_packet (isakmp-pkt.c:439)
-   ==10670==  Address 0x3C2937BC is 0 bytes after a block of size 0 free'd
-   ==10670==    at 0x3C04068B: free (in /usr/local/lib/valgrind/vgpreload_memcheck.so)
-   ==10670==    by 0x804E257: free_isakmp_payload (isakmp-pkt.c:368)
-   ==10670==    by 0x804E241: free_isakmp_payload (isakmp-pkt.c:365)
-   ==10670==    by 0x804E448: free_isakmp_packet (isakmp-pkt.c:439)
  * implement main mode
- * privilege separation or drop privileges to unprivileged user
  * -s sniffing option using libpcap
  * check on the nonce in phase2_hash
  * code cleanup: replace all those ugly linked lists with real, generic
    data structure implementations, and use hash maps instead of linked lists
-   where appropriate (config->psk, peer_ctx->msg_iv)
- * implement full MitM
+   where appropriate (config->keys, peer_ctx->msg_iv)
+ * implement full MitM (well, maybe)

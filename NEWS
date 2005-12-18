@@ -1,5 +1,12 @@
 $Id$
 
+0.0.4	2005-12-18	* Excessive memory handling refactoring for
+			  improved portability.
+			* Fixed the deep copying of the SA payload, which
+			  led to the SPI buffer being doubly free()'d.
+			* Drop privileges if uid != euid unless we need
+			  them again later, eg. for -r.
+
 0.0.3	2005-12-17	* Support for building on Linux.
 			* Added WITHOUT_LIBNET tunable.
 			* GNUmakefile honours CC now.

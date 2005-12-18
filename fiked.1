@@ -95,6 +95,9 @@ Forge the source address on sent packets to match \fIgateway\fP.  This
 uses a raw socket to send the packets.  Use this option if your
 particular attack setup does not rewrite the packets traveling from
 \fIfiked\fP back to clients.
+Note that using \fI-r\fP prevents dropping privileges if \fIfiked\fP is
+installed setuid root, since libnet requires root privileges to send
+packets through a raw socket.
 This option is not available if \fIfiked\fP was built without libnet
 support.
 .TP
@@ -130,7 +133,6 @@ Main mode is not supported.
 .LP
 Only a single \fIgateway\fP address can be specified.
 .LP
-There is no privilege separation or dropping of privileges.
-.LP
 \fISecret\fPs can only be specified as command line arguments, which
-potentially exposes them to other users on the system.
+potentially exposes them to other users on the system, especially on
+systems which do not have setproctitle(3).
