@@ -19,6 +19,7 @@
  */
 
 #include "peer_ctx.h"
+#include "mem.h"
 #include "vpnc/math_group.h"
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -39,7 +40,7 @@ message_iv * message_iv_get(uint32_t id, message_iv **head)
 	}
 
 	if(!found) {
-		found = malloc(sizeof(message_iv));
+		mem_allocate(&found, sizeof(message_iv));
 		memset(found, 0, sizeof(message_iv));
 		found->id = id;
 		found->next = *head;
@@ -55,10 +56,7 @@ void message_iv_free(message_iv *msg_iv)
 		message_iv_free(msg_iv->next);
 		msg_iv->next = NULL;
 	}
-	if(msg_iv->iv) {
-		free(msg_iv->iv);
-		msg_iv->iv = NULL;
-	}
+	mem_free(&msg_iv->iv);
 	free(msg_iv);
 }
 
@@ -75,7 +73,7 @@ peer_ctx * peer_ctx_get(datagram *dgm, config *cfg, peer_ctx **head)
 	}
 
 	if(!found) {
-		found = malloc(sizeof(peer_ctx));
+		mem_allocate(&found, sizeof(peer_ctx));
 		memset(found, 0, sizeof(peer_ctx));
 		found->peer_addr = dgm->peer_addr;
 		found->next = *head;
@@ -87,21 +85,15 @@ peer_ctx * peer_ctx_get(datagram *dgm, config *cfg, peer_ctx **head)
 	return found;
 }
 
-#define FREE_CTX_MEMBER(x) \
-	if(ctx->x) { \
-		free(ctx->x); \
-		ctx->x = NULL; \
-	}
-
 void peer_ctx_clear(peer_ctx *ctx)
 {
-	FREE_CTX_MEMBER(ipsec_id);
-	FREE_CTX_MEMBER(ipsec_secret);
-	FREE_CTX_MEMBER(xauth_username);
-	FREE_CTX_MEMBER(xauth_password);
+	mem_free(&ctx->ipsec_id);
+	mem_free(&ctx->ipsec_secret);
+	mem_free(&ctx->xauth_username);
+	mem_free(&ctx->xauth_password);
 
-	FREE_CTX_MEMBER(key);
-	FREE_CTX_MEMBER(iv0);
+	mem_free(&ctx->key);
+	mem_free(&ctx->iv0);
 	if(ctx->msg_iv) {
 		message_iv_free(ctx->msg_iv);
 		ctx->msg_iv = NULL;
@@ -112,22 +104,22 @@ void peer_ctx_clear(peer_ctx *ctx)
 		ctx->dh_group = NULL;
 	}
 
-	FREE_CTX_MEMBER(dh_i_public);
-	FREE_CTX_MEMBER(dh_r_public);
-	FREE_CTX_MEMBER(dh_secret);
+	mem_free(&ctx->dh_i_public);
+	mem_free(&ctx->dh_r_public);
+	mem_free(&ctx->dh_secret);
 
-	FREE_CTX_MEMBER(skeyid);
-	FREE_CTX_MEMBER(skeyid_e);
-	FREE_CTX_MEMBER(skeyid_a);
-	FREE_CTX_MEMBER(skeyid_d);
+	mem_free(&ctx->skeyid);
+	mem_free(&ctx->skeyid_e);
+	mem_free(&ctx->skeyid_a);
+	mem_free(&ctx->skeyid_d);
 
-	FREE_CTX_MEMBER(i_sa);
-	FREE_CTX_MEMBER(i_id);
-	FREE_CTX_MEMBER(r_id);
-	FREE_CTX_MEMBER(i_nonce);
-	FREE_CTX_MEMBER(r_nonce);
-	FREE_CTX_MEMBER(i_hash);
-	FREE_CTX_MEMBER(r_hash);
+	mem_free(&ctx->i_sa);
+	mem_free(&ctx->i_id);
+	mem_free(&ctx->r_id);
+	mem_free(&ctx->i_nonce);
+	mem_free(&ctx->r_nonce);
+	mem_free(&ctx->i_hash);
+	mem_free(&ctx->r_hash);
 }
 
 void peer_ctx_reset(peer_ctx *ctx)
@@ -144,7 +136,7 @@ void peer_ctx_free(peer_ctx *ctx)
 		peer_ctx_free(ctx->next);
 		ctx->next = NULL;
 	}
-	FREE_CTX_MEMBER(last_dgm_hash); /* only free this on free_peer_ctx */
+	mem_free(&ctx->last_dgm_hash); /* only free on free_peer_ctx */
 	peer_ctx_clear(ctx);
 	free(ctx);
 }

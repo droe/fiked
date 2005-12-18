@@ -20,6 +20,7 @@
 
 #include "datagram.h"
 #include "log.h"
+#include "mem.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -38,10 +39,11 @@ datagram * datagram_new(size_t size)
 {
 	if(size == 0)
 		size = UDP_DGM_MAXSIZE;
-	datagram *dgm = malloc(sizeof(datagram));
+	datagram *dgm = NULL;
+	mem_allocate(&dgm, sizeof(datagram));
 	memset(dgm, 0, sizeof(datagram));
 	dgm->len = size;
-	dgm->data = malloc(dgm->len);
+	mem_allocate(&dgm->data, dgm->len);
 	memset(dgm->data, 0, sizeof(dgm->len));
 	return dgm;
 }
@@ -52,8 +54,7 @@ datagram * datagram_new(size_t size)
 void datagram_free(datagram *dgm)
 {
 	if(dgm) {
-		if(dgm->data)
-			free(dgm->data);
+		mem_free(&dgm->data);
 		free(dgm);
 	}
 }
@@ -66,7 +67,8 @@ void datagram_free(datagram *dgm)
  */
 udp_socket * udp_socket_new(uint16_t port)
 {
-	udp_socket *s = malloc(sizeof(udp_socket));
+	udp_socket *s = NULL;
+	mem_allocate(&s, sizeof(udp_socket));
 	s->port = port;
 	s->fd = socket(PF_INET, SOCK_DGRAM, 0);
 	if(s->fd < 0) {

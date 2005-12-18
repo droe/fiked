@@ -24,6 +24,7 @@
 #include "datagram.h"
 #include "peer_ctx.h"
 #include "ike.h"
+#include "mem.h"
 #include "vpnc/isakmp-pkt.h"
 #include "vpnc/isakmp.h"
 #include "vpnc/math_group.h"
@@ -74,7 +75,8 @@ int duplicate(peer_ctx *ctx, datagram *dgm)
 {
 	int dup = 0;
 	size_t hash_len = gcry_md_get_algo_dlen(DUP_HASH_ALGO);
-	uint8_t *dgm_hash = malloc(hash_len);
+	uint8_t *dgm_hash = NULL;
+	mem_allocate(&dgm_hash, hash_len);
 	gcry_md_hash_buffer(DUP_HASH_ALGO, dgm_hash, dgm->data, dgm->len);
 
 	if(ctx->last_dgm_hash) {
@@ -122,9 +124,6 @@ void status(config *cfg, peer_ctx *ctx)
 int main(int argc, char *argv[])
 {
 	self = argv[0];
-#ifdef __BSD__
-	_malloc_options = "X";	/* call abort(3) on memory allocation errors */
-#endif
 	umask(0077);
 
 #ifdef WITH_LIBNET

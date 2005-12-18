@@ -19,6 +19,7 @@
  */
 
 #include "config.h"
+#include "mem.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -44,7 +45,7 @@ void psk_set_key(char *id, char *key, psk **head)
 	}
 
 	if(!found) {
-		found = malloc(sizeof(psk));
+		mem_allocate(&found, sizeof(psk));
 		memset(found, 0, sizeof(psk));
 		found->id = strdup(id);
 		found->next = *head;
@@ -56,18 +57,9 @@ void psk_set_key(char *id, char *key, psk **head)
 
 void psk_free(psk *keys)
 {
-	if(keys->next) {
-		psk_free(keys->next);
-		keys->next = NULL;
-	}
-	if(keys->id) {
-		free(keys->id);
-		keys->id = NULL;
-	}
-	if(keys->key) {
-		free(keys->key);
-		keys->key = NULL;
-	}
+	mem_free(&keys->next);
+	mem_free(&keys->id);
+	mem_free(&keys->key);
 	free(keys);
 }
 
@@ -76,16 +68,12 @@ void psk_free(psk *keys)
 
 config * config_new()
 {
-	config *cfg = malloc(sizeof(config));
+	config *cfg = NULL;
+	mem_allocate(&cfg, sizeof(config));
 	memset(cfg, 0, sizeof(config));
 	return cfg;
 }
 
-#define FREE_CFG_MEMBER(x) \
-	if(cfg->x) { \
-		free(cfg->x); \
-		cfg->x = NULL; \
-	}
 void config_free(config *cfg)
 {
 	if(cfg->us) {
@@ -93,7 +81,7 @@ void config_free(config *cfg)
 		cfg->us = NULL;
 	}
 
-	FREE_CFG_MEMBER(gateway);
+	mem_free(&cfg->gateway);
 
 	if(cfg->keys) {
 		psk_free(cfg->keys);
@@ -102,4 +90,3 @@ void config_free(config *cfg)
 
 	free(cfg);
 }
-#undef FREE_CFG_MEMBER

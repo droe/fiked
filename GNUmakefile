@@ -36,7 +36,7 @@ COPTS+=-D_BSD_SOURCE -D_GNU_SOURCE -include /usr/include/errno.h
 endif
 
 PGM=fiked
-OBJS=config.o datagram.o send_dgm.o peer_ctx.o results.o log.o ike.o main.o
+OBJS=mem.o config.o datagram.o send_dgm.o peer_ctx.o results.o log.o ike.o main.o
 SUBDIR=vpnc
 SUBLIB=lib$(SUBDIR).a
 
