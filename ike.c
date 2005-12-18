@@ -404,6 +404,11 @@ void sa_transform_choose(peer_ctx* ctx, struct isakmp_payload *response, struct 
 
 	/* copy proposals payload */
 	*response->u.sa.proposals = *proposal->u.sa.proposals;
+	response->u.sa.proposals->u.p.spi = NULL;
+	mem_allocate(&response->u.sa.proposals->u.p.spi, response->u.sa.proposals->u.p.spi_size);
+	memcpy(response->u.sa.proposals->u.p.spi,
+		proposal->u.sa.proposals->u.p.spi,
+		response->u.sa.proposals->u.p.spi_size);
 	response->u.sa.proposals->u.p.transforms =
 		new_isakmp_payload(ISAKMP_PAYLOAD_T);
 
