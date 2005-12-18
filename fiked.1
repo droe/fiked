@@ -22,22 +22,8 @@ fiked \- a fake IKE PSK+XAUTH daemon based on vpnc
 .SH SYNOPSIS
 .na
 .B fiked
-[
-.B \-rdqhV
-]
-.B \-g
-.I gateway
-.B \-k
-\fIid\fP\fB:\fP\fIsecret\fP [
-.B \-u
-.I user
-] [
-.B \-l
-.I file
-] [
-.B \-L
-.I file
-]
+[\fB-rdqhV\fP] \fB-g\fP \fIgateway\fP \fB-k\fP \fIid\fP\fB:\fP\fIsecret\fP
+[\fB-u\fP \fIuser\fP] [\fB-l\fP \fIfile\fP] [\fB-L\fP \fIfile\fP]
 .br
 .ad
 .SH DESCRIPTION
@@ -76,6 +62,7 @@ authentication.  This option may be used multiple times, each time
 specifying a different \fIid\fP, \fIsecret\fP pair.
 \fIFiked\fP will use the key id specified by a client to choose a
 matching \fIsecret\fP, or the first one if none matches.
+.br
 Note that specifying \fIsecret\fP's on the command line exposes them to
 other users on the system.
 .TP
@@ -84,6 +71,7 @@ Drop privileges after opening sockets and files by setting the user ID
 to \fIuser\fP given by id or name.  This may reduce the impact of
 security vulnerabilities in \fIfiked\fP, because the ISAKMP / IKE
 handling code will not be running with super user privileges.
+.br
 If \fB-u\fP is not given, \fIfiked\fP will drop privileges only if the
 real user ID is different from the effective user ID (ie. when called
 set-user-ID root).
@@ -104,9 +92,11 @@ Forge the source address on sent packets to match \fIgateway\fP.  This
 uses a raw socket to send the packets.  Use this option if your
 particular attack setup does not rewrite the packets traveling from
 \fIfiked\fP back to clients.
+.br
 Note that using \fI-r\fP prevents dropping privileges if \fIfiked\fP is
-installed setuid root, since libnet requires root privileges to send
-packets through a raw socket.
+installed set-user-ID root, since libnet requires root privileges to
+send packets through a raw socket.
+.br
 This option is not available if \fIfiked\fP was built without libnet
 support.
 .TP
