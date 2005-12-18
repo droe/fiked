@@ -16,7 +16,7 @@
 .\" 
 .\" $Id$
 .\"
-.TH FIKED 1  "1 November 2005"
+.TH FIKED 1  "18 December 2005"
 .SH NAME
 fiked \- a fake IKE PSK+XAUTH daemon based on vpnc
 .SH SYNOPSIS
@@ -29,6 +29,9 @@ fiked \- a fake IKE PSK+XAUTH daemon based on vpnc
 .I gateway
 .B \-k
 \fIid\fP\fB:\fP\fIsecret\fP [
+.B \-u
+.I user
+] [
 .B \-l
 .I file
 ] [
@@ -62,9 +65,7 @@ Detach from TTY and run as a daemon.
 .TP
 .B \-g
 Impersonate \fIgateway\fP.  This IP address is used in the responder ID
-payload, and as a source address if
-.B \-r
-is used.
+payload, and as a source address if \fB-r\fP is used.
 .TP
 .B \-h
 Display help and exit.
@@ -78,14 +79,22 @@ matching \fIsecret\fP, or the first one if none matches.
 Note that specifying \fIsecret\fP's on the command line exposes them to
 other users on the system.
 .TP
+.B \-u
+Drop privileges after opening sockets and files by setting the user ID
+to \fIuser\fP given by id or name.  This may reduce the impact of
+security vulnerabilities in \fIfiked\fP, because the ISAKMP / IKE
+handling code will not be running with super user privileges.
+If \fB-u\fP is not given, \fIfiked\fP will drop privileges only if the
+real user ID is different from the effective user ID (ie. when called
+set-user-ID root).
+.TP
 .B \-l
 Append captured XAUTH user credentials to \fIfile\fP using a grep friendly
 format, including the \fIsecret\fP, group id, and \fIgateway\fP address.
 .TP
 .B \-L
-Append verbous logging to \fIfile\fP instead of just standard output.  If
-.B \-q
-is also given, log to \fIfile\fP only.
+Append verbous logging to \fIfile\fP instead of just standard output.
+If \fB-q\fP is also given, log to \fIfile\fP only.
 .TP
 .B \-q
 Be quiet and do not log to standard output.
