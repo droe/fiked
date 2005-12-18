@@ -21,8 +21,10 @@
 #ifndef BSD_H
 #define BSD_H
 
-#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#ifndef __BSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
 #define __BSD__
+#endif
 #endif
 
 #endif /* BSD_H */
