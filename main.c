@@ -90,7 +90,7 @@ int duplicate(peer_ctx *ctx, datagram *dgm)
 #ifndef __BSD__
 void setproctitle(const char *fmt, ...)
 {
-	/* FIXME: add setproctitle replacement of sorts here */
+	/* FIXME: add setproctitle replacement code for Linux here ... */
 }
 #endif
 
@@ -136,6 +136,7 @@ int main(int argc, char *argv[])
 	char *logfile = NULL;
 	int opt_quiet = 0;
 	int opt_daemon = 0;
+	int need_root = 0;
 	char *p = NULL;
 	int k_valid = 0;
 	while((ch = getopt(argc, argv, OPTIONS)) != -1) {
@@ -169,6 +170,7 @@ int main(int argc, char *argv[])
 #ifdef WITH_LIBNET
 		case 'r':
 			cfg->opt_raw = 1;
+			need_root = 1;
 			break;
 #endif
 		case 'q':
@@ -192,16 +194,35 @@ int main(int argc, char *argv[])
 	if(!(cfg->gateway && cfg->keys))
 		usage();
 
-	gcry_check_version("1.1.90");
-	gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
 	group_init();
 	test_pack_unpack();
 	log_init(logfile, opt_quiet);
 
 	cfg->us = udp_socket_new(IKE_PORT);
 
+	/*
+	 * INIT_SECMEM drops privileges, so we disable secure memory if we
+	 * need root privileges later on (eg. for libnet to open raw sockets).
+	 * Since we don't put our own secrets in secure memory, we don't have
+	 * to worry about libgcrypt using secure memory or not.
+	 */
+	gcry_control(GCRYCTL_SUSPEND_SECMEM_WARN);
+	if(!gcry_check_version( GCRYPT_VERSION /*"1.1.90"*/)) {
+		log_printf(NULL, "ERROR: libgcrypt version mismatch! (expected: " GCRYPT_VERSION ")");
+		exit(-1);
+	}
+	if(!need_root) {
+		gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
+	} else {
+		gcry_control(GCRYCTL_DISABLE_SECMEM, 0);
+	}
+	gcry_control(GCRYCTL_INITIALIZATION_FINISHED, 0);
+
 	if(opt_daemon)
 		daemon(0, 0);
+
+	if(!need_root)
+		setuid(getuid());
 
 	status(cfg, NULL);
 
