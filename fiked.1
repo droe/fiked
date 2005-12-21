@@ -90,7 +90,7 @@ Be quiet and do not log to standard output.
 .B \-r
 Forge the source address on sent packets to match \fIgateway\fP.  This
 uses a raw socket to send the packets.  Use this option if your
-particular attack setup does not rewrite the packets traveling from
+particular attack setup does not rewrite the packets travelling from
 \fIfiked\fP back to clients.
 .br
 Note that using \fI-r\fP prevents dropping privileges if \fIfiked\fP is
@@ -126,7 +126,7 @@ arpspoof(8), ath(4), wi(4), pf(4), iptables(8), vpnc(8)
 part on \fIvpnc\fP by Maurice Massar, Geoffrey Keating and contributors.
 .SH BUGS
 IKE protocol compliance is just good enough to attack Cisco VPN clients and
-clones like vpnc, but nowhere near complete.
+clones like vpnc, but nowhere near complete, secure, or error free.
 .LP
 Main mode is not supported.
 .LP
@@ -134,4 +134,4 @@ Only a single \fIgateway\fP address can be specified.
 .LP
 \fISecret\fPs can only be specified as command line arguments, which
 potentially exposes them to other users on the system, especially on
-systems which do not have setproctitle(3).
+systems which do not have setproctitle(3), such as Linux.

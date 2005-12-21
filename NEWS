@@ -1,6 +1,6 @@
 $Id$
 
-0.0.4	2005-12-18	* Memory handling refactored for improved
+0.0.4	2005-12-21	* Memory handling refactored for improved
 			  portability older / non-FreeBSD systems.
 			* Fixed the deep copying of the SA payload, which
 			  led to the SPI buffer being doubly free()'d.
