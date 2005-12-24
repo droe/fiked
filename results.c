@@ -28,8 +28,8 @@
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
+#include <errno.h>
 
-extern int errno;
 static FILE* file = NULL;
 
 void results_init(char *filename)

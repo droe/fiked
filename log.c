@@ -30,8 +30,8 @@
 #include <time.h>
 #include <string.h>
 #include <stdarg.h>
+#include <errno.h>
 
-extern int errno;
 static FILE* file = NULL;
 static int quiet = 0;
 

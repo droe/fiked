@@ -1,5 +1,7 @@
 $Id$
 
+0.0.5	????-??-??	* Errno handling fixed.
+
 0.0.4	2005-12-21	* Memory handling refactored for improved
 			  portability older / non-FreeBSD systems.
 			* Fixed the deep copying of the SA payload, which

@@ -32,7 +32,7 @@ COPTS+=-DWITH_LIBNET
 endif
 
 ifeq ($(shell uname),Linux)
-COPTS+=-D_BSD_SOURCE -D_GNU_SOURCE -include /usr/include/errno.h
+COPTS+=-D_BSD_SOURCE -D_GNU_SOURCE
 endif
 
 PGM=fiked
