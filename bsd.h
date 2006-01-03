@@ -22,7 +22,7 @@
 #define BSD_H
 
 #ifndef __BSD__
-#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || defined(__APPLE__)
 #define __BSD__
 #endif
 #endif
