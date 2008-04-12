@@ -1,3 +1,7 @@
+ * write a pid file when running as a daemon
+ * rewrite main() to not open any files before daemon()
+ * implement --script functionality for launching vpnc
+ * implement token support
  * implement main mode
  * -s sniffing option using libpcap
  * check on the nonce in phase2_hash

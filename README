@@ -71,6 +71,7 @@ make install (gmake on BSD) on systems with a C99 capable GCC.
 
 Fiked has been developed on FreeBSD, but should build and run
 fine on other BSD and Linux boxes.  Please do send me patches.
+Reported to work fine are OpenBSD and Debian.
 
 By defining WITHOUT_LIBNET, you can omit libnet support, which will
 remove the dependency on libnet, and will give you a fiked which does
