@@ -63,7 +63,7 @@ void usage()
 	fprintf(stderr, "\t-V\tprint version and exit\n");
 	fprintf(stderr, "\t-g gw\tVPN gateway address to impersonate\n");
 	fprintf(stderr, "\t-k i:k\tpre-shared key aka. group password, shared secret, prefixed\n\t\twith its group/key id (first -k sets default)\n");
-	fprintf(stderr, "\t-u user\tdrop privileges; setuid() to unprivileged user\n");
+	fprintf(stderr, "\t-u user\tdrop privileges to unprivileged user account\n");
 	fprintf(stderr, "\t-l file\tappend results to credential log file\n");
 	fprintf(stderr, "\t-L file\tverbous logging to file instead of stdout\n");
 	exit(-1);
@@ -122,18 +122,36 @@ void status(config *cfg, peer_ctx *ctx)
 }
 
 /*
- * Look up a user in the user database and return the user's uid.
+ * Permanently drop from root privileges to an unprivileged user account.
+ * Sets the real, effective and stored user and group ID and the list of
+ * ancillary groups.  This is only safe if the effective user ID is 0.
+ * Returns 0 on success, -1 on failure.
  */
-inline uid_t getuidbyname(const char * user)
+int drop_to_user(const char *user)
 {
-	struct passwd * pw = getpwnam(user);
-	if(!pw) {
-		fprintf(stderr, "No such user: %s\n", user);
-		exit(-1);
-	}
-	uid_t uid = pw->pw_uid;
+	struct passwd *pw;
+	int ret;
+
+	ret = -1;
+	if (!user)
+		user = "nobody";
+
+	if (!(pw = getpwnam(user)))
+		goto error;
+
+	if (initgroups(user, pw->pw_gid) == -1)
+		goto error;
+
+	if (setgid(pw->pw_gid) == -1)
+		goto error;
+
+	if (setuid(pw->pw_uid) == -1)
+		goto error;
+
+	ret = 0;
+error:
 	endpwent();
-	return uid;
+	return ret;
 }
 
 /*
@@ -143,7 +161,7 @@ inline uid_t getuidbyname(const char * user)
  * Since we don't put our own secrets in secure memory, we don't have
  * to worry about libgcrypt using secure memory or not.
  */
-inline void init_gcrypt(int need_root)
+void init_gcrypt(int need_root)
 {
 	gcry_control(GCRYCTL_SUSPEND_SECMEM_WARN);
 	if(!gcry_check_version(GCRYPT_VERSION)) {
@@ -176,7 +194,7 @@ int main(int argc, char *argv[])
 	int need_root = 0;
 	char *p = NULL;
 	int k_valid = 0;
-	uid_t uid = 0;
+	char *username = NULL;
 	while((ch = getopt(argc, argv, OPTIONS)) != -1) {
 		switch(ch) {
 		case 'g':
@@ -196,9 +214,7 @@ int main(int argc, char *argv[])
 			psk_set_key(optarg, p, &cfg->keys);
 			break;
 		case 'u':
-			uid = strtol(optarg, 0, 0);
-			if(!uid)
-				uid = getuidbyname(optarg);
+			username = strdup(optarg);
 			break;
 		case 'l':
 			results_init(optarg);
@@ -245,7 +261,7 @@ int main(int argc, char *argv[])
 	if(opt_daemon)
 		daemon(0, 0);
 	if(!need_root)
-		setuid(uid ? uid : getuid());
+		drop_to_user(username);
 	status(cfg, NULL);
 
 	peer_ctx *peers = NULL;
