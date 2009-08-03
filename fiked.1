@@ -1,5 +1,5 @@
 .\" fiked - a fake IKE PSK+XAUTH daemon based on vpnc
-.\" Copyright (C) 2005, Daniel Roethlisberger <daniel@roe.ch>
+.\" Copyright (C) 2005,2009 Daniel Roethlisberger <daniel@roe.ch>
 .\" 
 .\" This program is free software; you can redistribute it and/or modify
 .\" it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 .\" 
 .\" $Id$
 .\"
-.TH FIKED 1  "18 December 2005"
+.TH FIKED 1  "4 August 2009"
 .SH NAME
 fiked \- a fake IKE PSK+XAUTH daemon based on vpnc
 .SH SYNOPSIS
@@ -67,14 +67,18 @@ Note that specifying \fIsecret\fP's on the command line exposes them to
 other users on the system.
 .TP
 .B \-u
-Drop privileges after opening sockets and files by setting the user ID
-to \fIuser\fP given by id or name.  This may reduce the impact of
+Drop privileges after opening sockets and files by setting the real,
+effective and stored user IDs to \fIuser\fP and loading the appropriate
+primary and anxillary groups.  This potentially reduces the impact of
 security vulnerabilities in \fIfiked\fP, because the ISAKMP / IKE
-handling code will not be running with super user privileges.
+handling code, which is most likely to be vulnerable, will not be
+running with super user privileges.
 .br
 If \fB-u\fP is not given, \fIfiked\fP will drop privileges only if the
-real user ID is different from the effective user ID (ie. when called
-set-user-ID root).
+real user ID is different from the effective user ID (i.e. when installed
+set-user-ID root and run as a non-root user), in which case the real user
+ID will be the new effective and stored user ID, and the group list will
+be left untouched.
 .TP
 .B \-l
 Append captured XAUTH user credentials to \fIfile\fP using a grep friendly
