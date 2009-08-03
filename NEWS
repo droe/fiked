@@ -1,5 +1,7 @@
 $Id$
 
+0.0.6	????-??-??	* TBD
+
 0.0.5	2009-08-04	* Also load the group IDs when dropping
 			  privileges to an unprivileged account.
 			* Errno handling fixed.
