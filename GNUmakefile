@@ -1,5 +1,5 @@
 # fiked - a fake IKE PSK+XAUTH daemon based on vpnc
-# Copyright (C) 2005, Daniel Roethlisberger <daniel@roe.ch>
+# Copyright (C) 2005,2009 Daniel Roethlisberger <daniel@roe.ch>
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,7 +27,10 @@ LDOPTS=-L$(LOCALBASE)/lib
 LIBS=-lgcrypt
 
 ifndef WITHOUT_LIBNET
-LIBS+=-lnet
+LIBNET_CFLAGS?=$(shell libnet11-config --cflags || libnet-config --cflags)
+LIBNET_LIBS?=$(shell libnet11-config --libs || libnet-config --libs)
+CFLAGS+=$(LIBNET_CFLAGS)
+LIBS+=$(LIBNET_LIBS)
 COPTS+=-DWITH_LIBNET
 endif
 
