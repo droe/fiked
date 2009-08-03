@@ -1,6 +1,6 @@
 /*
  * fiked - a fake IKE PSK+XAUTH daemon based on vpnc
- * Copyright (C) 2005, Daniel Roethlisberger <daniel@roe.ch>
+ * Copyright (C) 2005,2009 Daniel Roethlisberger <daniel@roe.ch>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -237,7 +237,7 @@ int main(int argc, char *argv[])
 			break;
 		case 'V':
 			printf("fiked-%s - fake IKE PSK+XAUTH daemon based on vpnc\n", VERSION);
-			printf("Copyright (C) 2005, Daniel Roethlisberger <daniel@roe.ch>\n");
+			printf("Copyright (C) 2005,2009 Daniel Roethlisberger <daniel@roe.ch>\n");
 			printf("Licensed under the GNU General Public License, version 2 or later\n");
 			printf("%s\n", URL);
 			exit(0);
@@ -260,8 +260,13 @@ int main(int argc, char *argv[])
 	init_gcrypt(need_root);
 	if(opt_daemon)
 		daemon(0, 0);
-	if(!need_root)
-		drop_to_user(username);
+	if(!need_root) {
+		if(getuid() != geteuid() && !username) {
+			setuid(getuid());
+		} else {
+			drop_to_user(username);
+		}
+	}
 	status(cfg, NULL);
 
 	peer_ctx *peers = NULL;
