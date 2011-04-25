@@ -42,7 +42,7 @@ log_init(char *filename, int q)
 		if (!file) {
 			fprintf(stderr, "FATAL: cannot open file %s: %s\n", filename,
 				strerror(errno));
-			exit(-1);
+			exit(EXIT_FAILURE);
 		}
 	}
 	quiet = q;

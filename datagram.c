@@ -75,7 +75,7 @@ udp_socket_new(uint16_t port)
 	if (s->fd < 0) {
 		fprintf(stderr, "FATAL: socket(udp) returned %d: %s (%d)\n",
 			s->fd, strerror(errno), errno);
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 
 	struct sockaddr_in sa;
@@ -86,7 +86,7 @@ udp_socket_new(uint16_t port)
 	if (ret < 0) {
 		fprintf(stderr, "FATAL: bind(%d/udp) returned %d: %s (%d)\n",
 			s->port, ret, strerror(errno), errno);
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 
 	return s;

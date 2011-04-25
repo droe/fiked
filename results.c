@@ -38,7 +38,7 @@ results_init(char *filename)
 	if (!file) {
 		fprintf(stderr, "FATAL: cannot open file %s: %s\n", filename,
 			strerror(errno));
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 }
 

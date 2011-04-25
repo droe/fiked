@@ -65,7 +65,7 @@ usage()
 	fprintf(stderr, "\t-u user\tdrop privileges to unprivileged user account\n");
 	fprintf(stderr, "\t-l file\tappend results to credential log file\n");
 	fprintf(stderr, "\t-L file\tverbous logging to file instead of stdout\n");
-	exit(-1);
+	exit(EXIT_FAILURE);
 }
 
 /*
@@ -171,7 +171,7 @@ init_gcrypt(int need_root)
 	if (!gcry_check_version(GCRYPT_VERSION)) {
 		fprintf(stderr, "libgcrypt version mismatch! (expected: "
 			GCRYPT_VERSION ")");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	if (!need_root) {
 		gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
@@ -245,7 +245,7 @@ main(int argc, char *argv[])
 			printf("Copyright (C) 2005,2009 Daniel Roethlisberger <daniel@roe.ch>\n");
 			printf("Licensed under the GNU General Public License, version 2 or later\n");
 			printf("%s\n", URL);
-			exit(0);
+			exit(EXIT_SUCCESS);
 		case 'h':
 		case '?':
 		default:
@@ -305,6 +305,6 @@ main(int argc, char *argv[])
 	log_cleanup();
 	peer_ctx_free(peers);
 	config_free(cfg);
-	return 0;
+	exit(EXIT_SUCCESS);
 }
 
