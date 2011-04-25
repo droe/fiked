@@ -15,7 +15,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see http://www.gnu.org/copyleft/
  * 
- * $Id$
  * $VPNC: math_group.c 62 2005-09-22 16:50:22Z massar $
  */
 

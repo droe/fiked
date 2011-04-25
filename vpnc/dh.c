@@ -15,7 +15,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see http://www.gnu.org/copyleft/
  * 
- * $Id$
  * $VPNC: dh.c 24 2004-06-10 09:19:53Z massar $
  */
 
