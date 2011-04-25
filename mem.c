@@ -19,19 +19,21 @@
 #include "mem.h"
 #include <stdlib.h>
 
-inline void mem_free(void *memptr)
+inline void
+mem_free(void *memptr)
 {
-	if(*(void**)memptr) {
+	if (*(void**)memptr) {
 		free(*(void**)memptr);
 		*(void**)memptr = NULL;
 	}
 }
 
-inline void mem_allocate(void *memptr, size_t size)
+inline void
+mem_allocate(void *memptr, size_t size)
 {
 	mem_free(memptr);
 	*(void**)memptr = malloc(size);
-	if(!*(void**)memptr)
+	if (!*(void**)memptr)
 		abort();
 }
 

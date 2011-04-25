@@ -23,26 +23,28 @@
 
 /* psk */
 
-char * psk_get_key(char *id, psk *head)
+char *
+psk_get_key(char *id, psk *head)
 {
 	char *key = NULL;
-	for(psk *p = head; p && !key; p = p->next) {
-		if(!strcmp(p->id, id) || !p->next)
+	for (psk *p = head; p && !key; p = p->next) {
+		if (!strcmp(p->id, id) || !p->next)
 			key = p->key;
 	}
 
 	return key;
 }
 
-void psk_set_key(char *id, char *key, psk **head)
+void
+psk_set_key(char *id, char *key, psk **head)
 {
 	psk *found = NULL;
-	for(psk *p = *head; p && !found; p = p->next) {
-		if(p->id == id)
+	for (psk *p = *head; p && !found; p = p->next) {
+		if (p->id == id)
 			found = p;
 	}
 
-	if(!found) {
+	if (!found) {
 		mem_allocate(&found, sizeof(psk));
 		memset(found, 0, sizeof(psk));
 		found->id = strdup(id);
@@ -53,7 +55,8 @@ void psk_set_key(char *id, char *key, psk **head)
 	found->key = strdup(key);
 }
 
-void psk_free(psk *keys)
+void
+psk_free(psk *keys)
 {
 	mem_free(&keys->next);
 	mem_free(&keys->id);
@@ -64,7 +67,8 @@ void psk_free(psk *keys)
 
 /* config */
 
-config * config_new()
+config *
+config_new()
 {
 	config *cfg = NULL;
 	mem_allocate(&cfg, sizeof(config));
@@ -72,16 +76,17 @@ config * config_new()
 	return cfg;
 }
 
-void config_free(config *cfg)
+void
+config_free(config *cfg)
 {
-	if(cfg->us) {
+	if (cfg->us) {
 		udp_socket_free(cfg->us);
 		cfg->us = NULL;
 	}
 
 	mem_free(&cfg->gateway);
 
-	if(cfg->keys) {
+	if (cfg->keys) {
 		psk_free(cfg->keys);
 		cfg->keys = NULL;
 	}

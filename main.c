@@ -45,7 +45,8 @@
 #endif
 
 char *self;
-void usage()
+void
+usage()
 {
 #ifdef WITH_LIBNET
 #define OPTIONS "g:k:u:l:L:rdqhV"
@@ -72,7 +73,8 @@ void usage()
  * This is not too beautiful, but works.
  */
 #define DUP_HASH_ALGO GCRY_MD_SHA1
-int duplicate(peer_ctx *ctx, datagram *dgm)
+int
+duplicate(peer_ctx *ctx, datagram *dgm)
 {
 	int dup = 0;
 	size_t hash_len = gcry_md_get_algo_dlen(DUP_HASH_ALGO);
@@ -80,7 +82,7 @@ int duplicate(peer_ctx *ctx, datagram *dgm)
 	mem_allocate(&dgm_hash, hash_len);
 	gcry_md_hash_buffer(DUP_HASH_ALGO, dgm_hash, dgm->data, dgm->len);
 
-	if(ctx->last_dgm_hash) {
+	if (ctx->last_dgm_hash) {
 		dup = !memcmp(ctx->last_dgm_hash, dgm_hash, hash_len);
 		free(ctx->last_dgm_hash);
 	}
@@ -89,7 +91,8 @@ int duplicate(peer_ctx *ctx, datagram *dgm)
 }
 
 #ifndef __BSD__
-void setproctitle(const char *fmt, ...)
+void
+setproctitle(const char *fmt, ...)
 {
 	/* FIXME: add setproctitle replacement code for Linux here ... */
 }
@@ -99,7 +102,8 @@ void setproctitle(const char *fmt, ...)
  * Signal status to outside by setting the process title.
  * If ctx is set, logs credentials to results file.
  */
-void status(config *cfg, peer_ctx *ctx)
+void
+status(config *cfg, peer_ctx *ctx)
 {
 	static uint32_t count = 0;
 #ifdef WITH_LIBNET
@@ -107,7 +111,7 @@ void status(config *cfg, peer_ctx *ctx)
 #else
 	char *raw_txt = "";
 #endif
-	if(!ctx) {
+	if (!ctx) {
 		log_printf(NULL, "fiked-%s started (%d/udp%s)", VERSION,
 			cfg->us->port, raw_txt);
 		setproctitle("[%d/udp%s] %d logins",
@@ -125,7 +129,8 @@ void status(config *cfg, peer_ctx *ctx)
  * ancillary groups.  This is only safe if the effective user ID is 0.
  * Returns 0 on success, -1 on failure.
  */
-int drop_to_user(const char *user)
+int
+drop_to_user(const char *user)
 {
 	struct passwd *pw;
 	int ret;
@@ -159,15 +164,16 @@ error:
  * Since we don't put our own secrets in secure memory, we don't have
  * to worry about libgcrypt using secure memory or not.
  */
-void init_gcrypt(int need_root)
+void
+init_gcrypt(int need_root)
 {
 	gcry_control(GCRYCTL_SUSPEND_SECMEM_WARN);
-	if(!gcry_check_version(GCRYPT_VERSION)) {
+	if (!gcry_check_version(GCRYPT_VERSION)) {
 		fprintf(stderr, "libgcrypt version mismatch! (expected: "
 			GCRYPT_VERSION ")");
 		exit(-1);
 	}
-	if(!need_root) {
+	if (!need_root) {
 		gcry_control(GCRYCTL_INIT_SECMEM, 16384, 0);
 	} else {
 		gcry_control(GCRYCTL_DISABLE_SECMEM, 0);
@@ -178,7 +184,8 @@ void init_gcrypt(int need_root)
 /*
  * Option processing and main loop.
  */
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
 	setproctitle("initializing");
 	self = argv[0];
@@ -193,21 +200,21 @@ int main(int argc, char *argv[])
 	char *p = NULL;
 	int k_valid = 0;
 	char *username = NULL;
-	while((ch = getopt(argc, argv, OPTIONS)) != -1) {
-		switch(ch) {
+	while ((ch = getopt(argc, argv, OPTIONS)) != -1) {
+		switch (ch) {
 		case 'g':
 			cfg->gateway = strdup(optarg);
 			break;
 		case 'k':
 			k_valid = 0;
-			for(p = optarg; *p; p++) {
-				if(*p == ':') {
+			for (p = optarg; *p; p++) {
+				if (*p == ':') {
 					*p++ = '\0';
 					k_valid = 1;
 					break;
 				}
 			}
-			if(!k_valid)
+			if (!k_valid)
 				usage();
 			psk_set_key(optarg, p, &cfg->keys);
 			break;
@@ -248,7 +255,7 @@ int main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if(!(cfg->gateway && cfg->keys))
+	if (!(cfg->gateway && cfg->keys))
 		usage();
 
 	group_init();
@@ -256,10 +263,10 @@ int main(int argc, char *argv[])
 	log_init(logfile, opt_quiet);
 	cfg->us = udp_socket_new(IKE_PORT);
 	init_gcrypt(need_root);
-	if(opt_daemon)
+	if (opt_daemon)
 		daemon(0, 0);
-	if(!need_root) {
-		if(getuid() != geteuid() && !username) {
+	if (!need_root) {
+		if (getuid() != geteuid() && !username) {
 			setuid(getuid());
 		} else {
 			drop_to_user(username);
@@ -272,17 +279,17 @@ int main(int argc, char *argv[])
 	datagram *dgm = NULL;
 	int reject = 0;
 	struct isakmp_packet *ikp;
-	while(1) {
+	while (1) {
 		dgm = udp_socket_recv(cfg->us);
 		ctx = peer_ctx_get(dgm, cfg, &peers);
-		if(!duplicate(ctx, dgm)) {
+		if (!duplicate(ctx, dgm)) {
 			ikp = parse_isakmp_packet(dgm->data, dgm->len, &reject);
-			if(reject) {
+			if (reject) {
 				log_printf(ctx, "illegal ISAKMP packet (%d)",
 					reject);
 			} else {
 				ike_process_isakmp(ctx, ikp);
-				if(ctx->done) {
+				if (ctx->done) {
 					results_add(ctx);
 					status(ctx->cfg, ctx);
 					ctx->done = 0;

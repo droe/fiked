@@ -30,20 +30,22 @@
 
 static FILE* file = NULL;
 
-void results_init(char *filename)
+void
+results_init(char *filename)
 {
 	results_cleanup();
 	file = fopen(filename, "a");
-	if(!file) {
+	if (!file) {
 		fprintf(stderr, "FATAL: cannot open file %s: %s\n", filename,
 			strerror(errno));
 		exit(-1);
 	}
 }
 
-void results_add(peer_ctx *ctx)
+void
+results_add(peer_ctx *ctx)
 {
-	if(file) {
+	if (file) {
 		char timestamp[1024];
 		time_t epoch = time(0);
 		strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S %z",
@@ -56,9 +58,10 @@ void results_add(peer_ctx *ctx)
 	}
 }
 
-void results_cleanup()
+void
+results_cleanup()
 {
-	if(file) {
+	if (file) {
 		fclose(file);
 		file = NULL;
 	}

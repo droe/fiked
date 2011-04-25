@@ -25,14 +25,15 @@
 /*
  * Send a UDP datagram on a raw socket.
  */
-void raw_send(datagram *dgm, char *shost, uint16_t sport)
+void
+raw_send(datagram *dgm, char *shost, uint16_t sport)
 {
 	static char errbuf[LIBNET_ERRBUF_SIZE];
 	libnet_t *lnet = libnet_init(LIBNET_RAW4, NULL, errbuf);
 	libnet_ptag_t udp = libnet_build_udp(
 		sport, ntohs(dgm->peer_addr.sin_port),
 		LIBNET_UDP_H + dgm->len, 0, dgm->data, dgm->len, lnet, 0);
-	if(udp <= 0) {
+	if (udp <= 0) {
 		log_printf(NULL, "ERROR: cannot build UDP header: %s\n",
 			libnet_geterror(lnet));
 		return;
@@ -43,13 +44,13 @@ void raw_send(datagram *dgm, char *shost, uint16_t sport)
 		inet_addr(shost),
 		dgm->peer_addr.sin_addr.s_addr,
 		NULL, 0, lnet, 0);
-	if(ip <= 0) {
+	if (ip <= 0) {
 		log_printf(NULL, "FATAL: cannot build IP header: %s\n",
 			libnet_geterror(lnet));
 		return;
 	}
 	int ret = libnet_write(lnet);
-	if(ret <= 0) {
+	if (ret <= 0) {
 		log_printf(NULL, "ERROR: write error: %s\n",
 			libnet_geterror(lnet));
 		return;
@@ -62,10 +63,11 @@ void raw_send(datagram *dgm, char *shost, uint16_t sport)
 /*
  * Send a datagram, using either raw sockets or UDP socket, depending on opt_raw.
  */
-void send_datagram(peer_ctx *ctx, datagram *dgm)
+void
+send_datagram(peer_ctx *ctx, datagram *dgm)
 {
 #ifdef WITH_LIBNET
-	if(ctx->cfg->opt_raw) {
+	if (ctx->cfg->opt_raw) {
 		raw_send(dgm, ctx->cfg->gateway, IKE_PORT);
 	} else {
 		udp_socket_send(ctx->cfg->us, dgm);

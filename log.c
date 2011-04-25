@@ -33,12 +33,13 @@
 static FILE* file = NULL;
 static int quiet = 0;
 
-void log_init(char *filename, int q)
+void
+log_init(char *filename, int q)
 {
 	log_cleanup();
-	if(filename) {
+	if (filename) {
 		file = fopen(filename, "a");
-		if(!file) {
+		if (!file) {
 			fprintf(stderr, "FATAL: cannot open file %s: %s\n", filename,
 				strerror(errno));
 			exit(-1);
@@ -47,7 +48,8 @@ void log_init(char *filename, int q)
 	quiet = q;
 }
 
-void log_do_printf(const char *fmt, ...)
+void
+log_do_printf(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -56,26 +58,28 @@ void log_do_printf(const char *fmt, ...)
 	vasprintf(&buf, fmt, ap);
 	va_end(ap);
 
-	if(file) {
+	if (file) {
 		fprintf(file, "%s", buf);
 	}
-	if(!quiet) {
+	if (!quiet) {
 		fprintf(stdout, "%s", buf);
 	}
 	free(buf);
 }
 
-void log_do_flush()
+void
+log_do_flush()
 {
-	if(file) {
+	if (file) {
 		fflush(file);
 	}
-	if(!quiet) {
+	if (!quiet) {
 		fflush(stdout);
 	}
 }
 
-void log_printf(peer_ctx *ctx, const char *fmt, ...)
+void
+log_printf(peer_ctx *ctx, const char *fmt, ...)
 {
 	va_list ap;
 	char timestamp[1024];
@@ -89,7 +93,7 @@ void log_printf(peer_ctx *ctx, const char *fmt, ...)
 	va_end(ap);
 
 	log_do_printf("[%s] [%d] ", timestamp, getpid());
-	if(ctx) {
+	if (ctx) {
 		log_do_printf("[%s:%d] ",
 			inet_ntoa(ctx->peer_addr.sin_addr),
 			ntohs(ctx->peer_addr.sin_port));
@@ -99,11 +103,13 @@ void log_printf(peer_ctx *ctx, const char *fmt, ...)
 	free(buf);
 }
 
-void log_cleanup()
+void
+log_cleanup()
 {
-	if(file) {
-		if(file != stdout)
+	if (file) {
+		if (file != stdout)
 			fclose(file);
 		file = NULL;
 	}
 }
+

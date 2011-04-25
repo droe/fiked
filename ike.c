@@ -55,7 +55,8 @@
 void ike_process_new(peer_ctx *ctx, struct isakmp_packet *ikp);
 
 /* minimum */
-static inline int min(int a, int b)
+static inline int
+min(int a, int b)
 {
 	return (a < b) ? a : b;
 }
@@ -74,14 +75,15 @@ static const uint8_t unity_vid[] = UNITY_VENDOR_ID;
  * Encrypts or decrypts the buffer buf.
  * Buf must already be padded to blocksize of the encryption algorithm in use.
  */
-void ike_crypt_crypt(int algo, int enc, uint8_t *buf, size_t buflen,
+void
+ike_crypt_crypt(int algo, int enc, uint8_t *buf, size_t buflen,
 	uint8_t *key, size_t keylen, uint8_t *iv, size_t ivlen)
 {
 	gcry_cipher_hd_t crypt_ctx;
 	gcry_cipher_open(&crypt_ctx, algo, GCRY_CIPHER_MODE_CBC, 0);
 	gcry_cipher_setkey(crypt_ctx, key, keylen);
 	gcry_cipher_setiv(crypt_ctx, iv, ivlen);
-	if(!enc)
+	if (!enc)
 		gcry_cipher_decrypt(crypt_ctx, buf, buflen, NULL, 0);
 	else
 		gcry_cipher_encrypt(crypt_ctx, buf, buflen, NULL, 0);
@@ -93,7 +95,8 @@ void ike_crypt_crypt(int algo, int enc, uint8_t *buf, size_t buflen,
  * If payload of ikp is encrypted, decrypt it, if not, encrypt it.
  * Handles phase 1 and phase 2 enc/dec, and IV generation.
  */
-int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
+int
+ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
 	/*
 	 * phase 1, first:	iv = hash(i_dh_public r_dh_public)
@@ -113,10 +116,10 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 	int enc = !(ikp->flags & ISAKMP_FLAG_E);
 
-	switch(ctx->state) {
+	switch (ctx->state) {
 	case STATE_PHASE1:
 		/* iv0 not set means no phase 1 encrypted packets yet */
-		if(!ctx->iv0) {
+		if (!ctx->iv0) {
 			/* generate initial phase 1 iv */
 			gcry_md_open(&md_ctx, ctx->md_algo, 0);
 			gcry_md_write(md_ctx, ctx->dh_i_public,
@@ -134,7 +137,7 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 	case STATE_PHASE2:
 		/* fetch message_iv for this exchange */
 		msg_iv = message_iv_get(ikp->message_id, &ctx->msg_iv);
-		if(!msg_iv->iv) {
+		if (!msg_iv->iv) {
 			/* generate initial phase 2 iv */
 			gcry_md_open(&md_ctx, ctx->md_algo, 0);
 			gcry_md_write(md_ctx, ctx->iv0, ctx->blk_len);
@@ -144,7 +147,8 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 			gcry_md_putc(md_ctx, (ikp->message_id) & 0xFF);
 			gcry_md_final(md_ctx);
 			mem_allocate(&msg_iv->iv, ctx->md_len);
-			memcpy(msg_iv->iv, gcry_md_read(md_ctx, 0), ctx->blk_len);
+			memcpy(msg_iv->iv, gcry_md_read(md_ctx, 0),
+				ctx->blk_len);
 			gcry_md_close(md_ctx);
 		}
 		iv = msg_iv->iv;
@@ -157,7 +161,7 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 		break;
 	}
 
-	if(enc) {
+	if (enc) {
 		/* flatten and encrypt payload */
 		fp_type = ikp->u.payload->type;
 		flatten_isakmp_payload(ikp->u.payload, &fp, &fp_len,
@@ -172,7 +176,7 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 		memcpy(ikp->u.enc.data, fp, ikp->u.enc.length);
 		ikp->u.enc.type = fp_type;
 		/* update IV with last cipher block */
-		if(update_iv) {
+		if (update_iv) {
 			memcpy(iv, fp + fp_len - ctx->blk_len, ctx->blk_len);
 		}
 	} else { /* dec */
@@ -182,7 +186,7 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 		mem_allocate(&fp, fp_len);
 		memcpy(fp, ikp->u.enc.data, fp_len);
 		/* store last cipher block */
-		if(update_iv) {
+		if (update_iv) {
 			mem_allocate(&newiv, ctx->blk_len);
 			memcpy(newiv, fp + fp_len - ctx->blk_len, ctx->blk_len);
 		}
@@ -190,7 +194,7 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 		ike_crypt_crypt(ctx->algo, enc, fp, fp_len,
 			ctx->key, ctx->key_len, iv, ctx->blk_len);
 		/* copy stored last cipher block to iv */
-		if(update_iv) {
+		if (update_iv) {
 			memcpy(iv, newiv, ctx->blk_len);
 			mem_free(&newiv);
 		}
@@ -199,7 +203,7 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
 		struct isakmp_payload *pl = parse_isakmp_payload(
 			ikp->u.enc.type,
 			&cfp, &fp_len, &reject);
-		if(reject) {
+		if (reject) {
 			log_printf(ctx,
 				"illegal decrypted payload (%d), packet ignored",
 				reject);
@@ -222,7 +226,8 @@ int ike_crypt(peer_ctx *ctx, struct isakmp_packet *ikp)
  * Return phase 2 authentication hash for payload pl.
  * Returned hash must be freed.
  */
-uint8_t * phase2_hash(peer_ctx *ctx, uint32_t message_id, struct isakmp_payload *pl)
+uint8_t *
+phase2_hash(peer_ctx *ctx, uint32_t message_id, struct isakmp_payload *pl)
 {
 	gcry_md_hd_t md_ctx;
 	uint8_t *pl_flat;
@@ -240,7 +245,7 @@ uint8_t * phase2_hash(peer_ctx *ctx, uint32_t message_id, struct isakmp_payload 
 
 	/* XXX: nonce? */
 
-	if(pl) {
+	if (pl) {
 		flatten_isakmp_payload(pl, &pl_flat, &pl_size, 1);
 		gcry_md_write(md_ctx, pl_flat, pl_size);
 		free(pl_flat);
@@ -266,15 +271,16 @@ uint8_t * phase2_hash(peer_ctx *ctx, uint32_t message_id, struct isakmp_payload 
  * We do not prioritize, instead we just select the very first supported
  * transform.
  */
-int sa_transform_matches(peer_ctx* ctx, struct isakmp_payload *t)
+int
+sa_transform_matches(peer_ctx* ctx, struct isakmp_payload *t)
 {
 	struct isakmp_attribute *enc = NULL;
 	struct isakmp_attribute *keylen = NULL;
 	struct isakmp_attribute *hash = NULL;
 	struct isakmp_attribute *auth_method = NULL;
 	struct isakmp_attribute *group_desc = NULL;
-	for(struct isakmp_attribute *a = t->u.t.attributes; a; a = a->next) {
-		switch(a->type) {
+	for (struct isakmp_attribute *a = t->u.t.attributes; a; a = a->next) {
+		switch (a->type) {
 			case IKE_ATTRIB_ENC:
 				enc = a;
 				break;
@@ -297,7 +303,7 @@ int sa_transform_matches(peer_ctx* ctx, struct isakmp_payload *t)
 	}
 
 	/* do we have all required attributes? */
-	if(!(enc && hash && auth_method && group_desc)) {
+	if (!(enc && hash && auth_method && group_desc)) {
 		log_printf(ctx,
 			"missing attribute(s): enc=%p hash=%p am=%p gd=%p",
 			(void*)enc, (void*)hash, (void*)auth_method,
@@ -306,14 +312,14 @@ int sa_transform_matches(peer_ctx* ctx, struct isakmp_payload *t)
 	}
 
 	/* we don't support anything other than PSK+XAUTH */
-	if(auth_method->u.attr_16 != IKE_AUTH_XAUTHInitPreShared)
+	if (auth_method->u.attr_16 != IKE_AUTH_XAUTHInitPreShared)
 		return 0;
 
 	/* choose algorithms we support */
 	char *enc_txt = NULL;
 	char *md_txt = NULL;
 	char *dh_txt = NULL;
-	switch(enc->u.attr_16) {
+	switch (enc->u.attr_16) {
 		case IKE_ENC_DES_CBC:
 			ctx->algo = GCRY_CIPHER_DES;
 			enc_txt = "DES";
@@ -345,7 +351,7 @@ int sa_transform_matches(peer_ctx* ctx, struct isakmp_payload *t)
 		default:
 			return 0;
 	}
-	switch(hash->u.attr_16) {
+	switch (hash->u.attr_16) {
 		case IKE_HASH_MD5:
 			ctx->md_algo = GCRY_MD_MD5;
 			md_txt = "MD5";
@@ -357,21 +363,21 @@ int sa_transform_matches(peer_ctx* ctx, struct isakmp_payload *t)
 		default:
 			return 0;
 	}
-	switch(group_desc->u.attr_16) {
+	switch (group_desc->u.attr_16) {
 		case IKE_GROUP_MODP_768:
-			if(ctx->dh_group)
+			if (ctx->dh_group)
 				group_free(ctx->dh_group);
 			ctx->dh_group = group_get(OAKLEY_GRP_1);
 			dh_txt = "DH1";
 			break;
 		case IKE_GROUP_MODP_1024:
-			if(ctx->dh_group)
+			if (ctx->dh_group)
 				group_free(ctx->dh_group);
 			ctx->dh_group = group_get(OAKLEY_GRP_2);
 			dh_txt = "DH2";
 			break;
 		case IKE_GROUP_MODP_1536:
-			if(ctx->dh_group)
+			if (ctx->dh_group)
 				group_free(ctx->dh_group);
 			ctx->dh_group = group_get(OAKLEY_GRP_5);
 			dh_txt = "DH5";
@@ -384,8 +390,10 @@ int sa_transform_matches(peer_ctx* ctx, struct isakmp_payload *t)
 
 	/* set up lengths according to chosen algorithms */
 	ctx->md_len = gcry_md_get_algo_dlen(ctx->md_algo);
-	gcry_cipher_algo_info(ctx->algo, GCRYCTL_GET_BLKLEN, NULL, &(ctx->blk_len));
-	gcry_cipher_algo_info(ctx->algo, GCRYCTL_GET_KEYLEN, NULL, &(ctx->key_len));
+	gcry_cipher_algo_info(ctx->algo, GCRYCTL_GET_BLKLEN, NULL,
+		&(ctx->blk_len));
+	gcry_cipher_algo_info(ctx->algo, GCRYCTL_GET_KEYLEN, NULL,
+		&(ctx->key_len));
 
 	return 1;
 }
@@ -393,7 +401,9 @@ int sa_transform_matches(peer_ctx* ctx, struct isakmp_payload *t)
 /*
  * Walk proposal SA, choose a transform, copy relevant stuff to response SA.
  */
-void sa_transform_choose(peer_ctx* ctx, struct isakmp_payload *response, struct isakmp_payload *proposal)
+void
+sa_transform_choose(peer_ctx* ctx, struct isakmp_payload *response,
+	struct isakmp_payload *proposal)
 {
 	/* copy SA payload */
 	*response = *proposal;
@@ -402,7 +412,8 @@ void sa_transform_choose(peer_ctx* ctx, struct isakmp_payload *response, struct 
 	/* copy proposals payload */
 	*response->u.sa.proposals = *proposal->u.sa.proposals;
 	response->u.sa.proposals->u.p.spi = NULL;
-	mem_allocate(&response->u.sa.proposals->u.p.spi, response->u.sa.proposals->u.p.spi_size);
+	mem_allocate(&response->u.sa.proposals->u.p.spi,
+		response->u.sa.proposals->u.p.spi_size);
 	memcpy(response->u.sa.proposals->u.p.spi,
 		proposal->u.sa.proposals->u.p.spi,
 		response->u.sa.proposals->u.p.spi_size);
@@ -411,11 +422,11 @@ void sa_transform_choose(peer_ctx* ctx, struct isakmp_payload *response, struct 
 
 	/* find matching transform */
 	struct isakmp_payload *p;
-	for(p = proposal->u.sa.proposals->u.p.transforms; p; p = p->next) {
-		if(sa_transform_matches(ctx, p))
+	for (p = proposal->u.sa.proposals->u.p.transforms; p; p = p->next) {
+		if (sa_transform_matches(ctx, p))
 			break;
 	}
-	if(!p) {
+	if (!p) {
 		log_printf(ctx, "no matching algo proposal, ignoring request");
 		return;
 	}
@@ -425,8 +436,8 @@ void sa_transform_choose(peer_ctx* ctx, struct isakmp_payload *response, struct 
 	response->u.sa.proposals->u.p.transforms->next = NULL;
 
 	struct isakmp_attribute *ra = NULL;
-	for(struct isakmp_attribute *pa = p->u.t.attributes; pa; pa = pa->next) {
-		if(!ra) {
+	for (struct isakmp_attribute *pa = p->u.t.attributes; pa; pa = pa->next) {
+		if (!ra) {
 			/* first attribute */
 			ra = response->u.sa.proposals->u.p.transforms->u.t.attributes =
 				new_isakmp_attribute(pa->type, NULL);
@@ -437,7 +448,7 @@ void sa_transform_choose(peer_ctx* ctx, struct isakmp_payload *response, struct 
 		}
 		*ra = *pa;
 		ra->next = NULL;
-		switch(ra->af) {
+		switch (ra->af) {
 			case isakmp_attr_lots:
 				ra->u.lots.data = NULL;		/* don't free */
 				mem_allocate(&ra->u.lots.data, ra->u.lots.length);
@@ -465,18 +476,19 @@ void sa_transform_choose(peer_ctx* ctx, struct isakmp_payload *response, struct 
  * Process an IKE Informational packet.
  * Packet must already be decrypted.
  */
-void ike_process_informational(peer_ctx *ctx, struct isakmp_packet *ikp)
+void
+ike_process_informational(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
-	if(ikp->flags & ISAKMP_FLAG_E) {
+	if (ikp->flags & ISAKMP_FLAG_E) {
 		log_printf(ctx, "encrypted informational packet, reset state");
 		peer_ctx_reset(ctx);
 		return;
 	}
 
-	for(struct isakmp_payload *p = ikp->u.payload; p; p = p->next) {
-	switch(p->type) {
+	for (struct isakmp_payload *p = ikp->u.payload; p; p = p->next) {
+	switch (p->type) {
 	case ISAKMP_PAYLOAD_N:
-		switch(p->u.n.type) {
+		switch (p->u.n.type) {
 		case ISAKMP_N_INVALID_PAYLOAD_TYPE:
 			log_printf(ctx,
 				"error from peer: invalid payload type, reset state");
@@ -527,7 +539,8 @@ void ike_process_informational(peer_ctx *ctx, struct isakmp_packet *ikp)
  * Begin XAUTH login.
  * REQUEST(NAME="" PASSWORD="")
  */
-void ike_do_phase2_xauth_begin(peer_ctx *ctx)
+void
+ike_do_phase2_xauth_begin(peer_ctx *ctx)
 {
 	struct isakmp_packet *r = new_isakmp_packet();
 	memcpy(r->i_cookie, ctx->i_cookie, ISAKMP_COOKIE_LENGTH);
@@ -572,11 +585,12 @@ void ike_do_phase2_xauth_begin(peer_ctx *ctx)
  * Handle XAUTH replies.
  * REPLY(NAME="joe" PASSWORD="foobar")
  */
-void ike_do_phase2_xauth(peer_ctx *ctx, struct isakmp_packet *ikp)
+void
+ike_do_phase2_xauth(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
-	for(struct isakmp_attribute *a =
+	for (struct isakmp_attribute *a =
 		ikp->u.payload->next->u.modecfg.attributes; a; a = a->next) {
-		switch(a->type) {
+		switch (a->type) {
 			case ISAKMP_XAUTH_ATTRIB_USER_NAME:
 				mem_allocate(&ctx->xauth_username, a->u.lots.length + 1);
 				memcpy(ctx->xauth_username, a->u.lots.data, a->u.lots.length);
@@ -592,7 +606,7 @@ void ike_do_phase2_xauth(peer_ctx *ctx, struct isakmp_packet *ikp)
 					ctx->xauth_password);
 				break;
 			case ISAKMP_XAUTH_ATTRIB_STATUS:
-				if(a->u.attr_16 == 0) {
+				if (a->u.attr_16 == 0) {
 					log_printf(ctx,
 						"IKE session aborted by peer");
 					peer_ctx_reset(ctx);
@@ -646,9 +660,10 @@ void ike_do_phase2_xauth(peer_ctx *ctx, struct isakmp_packet *ikp)
 /*
  * Process MODECFG packets.
  */
-void ike_process_phase2_modecfg(peer_ctx *ctx, struct isakmp_packet *ikp)
+void
+ike_process_phase2_modecfg(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
-	switch(ikp->u.payload->next->u.modecfg.type) {
+	switch (ikp->u.payload->next->u.modecfg.type) {
 		case ISAKMP_MODECFG_CFG_REPLY:
 			ike_do_phase2_xauth(ctx, ikp);
 			break;
@@ -670,8 +685,9 @@ void ike_process_phase2_modecfg(peer_ctx *ctx, struct isakmp_packet *ikp)
  * Process an IKE packet in STATE_PHASE2.
  * Handles decryption.
  */
-void ike_process_phase2(peer_ctx *ctx, struct isakmp_packet *ikp) {
-	if(!(ikp->flags & ISAKMP_FLAG_E)) {
+void
+ike_process_phase2(peer_ctx *ctx, struct isakmp_packet *ikp) {
+	if (!(ikp->flags & ISAKMP_FLAG_E)) {
 		log_printf(ctx,
 			"unencrypted packet in STATE_PHASE2, reset state");
 		peer_ctx_reset(ctx);
@@ -679,14 +695,14 @@ void ike_process_phase2(peer_ctx *ctx, struct isakmp_packet *ikp) {
 		return;
 	}
 
-	switch(ikp->exchange_type) {
+	switch (ikp->exchange_type) {
 		case ISAKMP_EXCHANGE_MODECFG_TRANSACTION:
-			if(!ike_crypt(ctx, ikp))
+			if (!ike_crypt(ctx, ikp))
 				ike_process_phase2_modecfg(ctx, ikp);
 			break;
 
 		case ISAKMP_EXCHANGE_INFORMATIONAL:
-			if(!ike_crypt(ctx, ikp))
+			if (!ike_crypt(ctx, ikp))
 				ike_process_informational(ctx, ikp);
 			break;
 
@@ -707,15 +723,16 @@ void ike_process_phase2(peer_ctx *ctx, struct isakmp_packet *ikp) {
 /*
  * Process an IKE Aggressive Mode packet in STATE_NEW.
  */
-void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
+void
+ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
 	/* get the payloads */
 	struct isakmp_payload *sa = NULL;
 	struct isakmp_payload *ke = NULL;
 	struct isakmp_payload *nonce = NULL;
 	struct isakmp_payload *id = NULL;
-	for(struct isakmp_payload *p = ikp->u.payload; p; p = p->next) {
-	switch(p->type) {
+	for (struct isakmp_payload *p = ikp->u.payload; p; p = p->next) {
+	switch (p->type) {
 		case ISAKMP_PAYLOAD_SA:
 			sa = p;
 			break;
@@ -744,7 +761,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	}}
 
 	/* do we have all payloads? */
-	if(!(sa && ke && nonce && id)) {
+	if (!(sa && ke && nonce && id)) {
 		log_printf(ctx,
 			"missing payload(s): sa=%p ke=%p nonce=%p id=%p, ignored",
 			(void*)sa, (void*)ke, (void*)nonce, (void*)id);
@@ -752,7 +769,7 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 	}
 
 	/* heads up: the ipsec id */
-	switch(id->u.id.type) {
+	switch (id->u.id.type) {
 		case ISAKMP_IPSEC_ID_FQDN:
 		case ISAKMP_IPSEC_ID_USER_FQDN:
 		case ISAKMP_IPSEC_ID_KEY_ID:
@@ -912,11 +929,11 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 
 	/* encryption key */
 	mem_allocate(&ctx->key, ctx->key_len);
-	if(ctx->key_len > ctx->md_len) {
-		for(int i = 0; i * ctx->md_len < ctx->key_len; i++) {
+	if (ctx->key_len > ctx->md_len) {
+		for (int i = 0; i * ctx->md_len < ctx->key_len; i++) {
 			gcry_md_open(&md_ctx, ctx->md_algo, GCRY_MD_FLAG_HMAC);
 			gcry_md_setkey(md_ctx, ctx->skeyid_e, ctx->md_len);
-			if(i == 0)
+			if (i == 0)
 				gcry_md_putc(md_ctx, 0);
 			else
 				gcry_md_write(md_ctx,
@@ -995,12 +1012,13 @@ void ike_do_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
  * Process the last IKE Aggressive Mode packet in phase 1, containing i_hash.
  * Brings us to phase 2 (hopefully).
  */
-void ike_do_phase1_end(peer_ctx *ctx, struct isakmp_packet *ikp)
+void
+ike_do_phase1_end(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
 	/* get the payloads */
 	struct isakmp_payload *h = NULL;
-	for(struct isakmp_payload *p = ikp->u.payload; p; p = p->next) {
-	switch(p->type) {
+	for (struct isakmp_payload *p = ikp->u.payload; p; p = p->next) {
+	switch (p->type) {
 		case ISAKMP_PAYLOAD_HASH:
 			h = p;
 			break;
@@ -1018,13 +1036,13 @@ void ike_do_phase1_end(peer_ctx *ctx, struct isakmp_packet *ikp)
 	}}
 
 	/* do we have all payloads? */
-	if(!h) {
+	if (!h) {
 		log_printf(ctx, "missing payload: h=%p, ignored", (void*)h);
 		return;
 	}
 
 	/* verify hash */
-	if(h->u.hash.length != ctx->md_len ||
+	if (h->u.hash.length != ctx->md_len ||
 		memcmp(h->u.hash.data, ctx->i_hash, ctx->md_len)) {
 		log_printf(ctx, "IKE phase 1 auth failed (i_hash mismatch)");
 		return;
@@ -1039,18 +1057,19 @@ void ike_do_phase1_end(peer_ctx *ctx, struct isakmp_packet *ikp)
 /*
  * Process an IKE packet in STATE_PHASE1.
  */
-void ike_process_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
+void
+ike_process_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
-	if(!(ikp->flags & ISAKMP_FLAG_E)) {
+	if (!(ikp->flags & ISAKMP_FLAG_E)) {
 		log_printf(ctx, "unencrypted packet in STATE_PHASE1, reset state");
 		peer_ctx_reset(ctx);
 		ike_process_new(ctx, ikp);
 		return;
 	}
 
-	switch(ikp->exchange_type) {
+	switch (ikp->exchange_type) {
 		case ISAKMP_EXCHANGE_AGGRESSIVE:
-			if(!ike_crypt(ctx, ikp))
+			if (!ike_crypt(ctx, ikp))
 				ike_do_phase1_end(ctx, ikp);
 			break;
 
@@ -1077,14 +1096,15 @@ void ike_process_phase1(peer_ctx *ctx, struct isakmp_packet *ikp)
 /*
  * Process an IKE packet in STATE_NEW.
  */
-void ike_process_new(peer_ctx *ctx, struct isakmp_packet *ikp)
+void
+ike_process_new(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
-	if(ikp->flags & ISAKMP_FLAG_E) {
+	if (ikp->flags & ISAKMP_FLAG_E) {
 		log_printf(ctx, "encrypted packet in STATE_NEW, ignored");
 		return;
 	}
 
-	switch(ikp->exchange_type) {
+	switch (ikp->exchange_type) {
 		case ISAKMP_EXCHANGE_AGGRESSIVE:
 			log_printf(ctx, "IKE session initiated");
 			ike_do_phase1(ctx, ikp);
@@ -1116,14 +1136,15 @@ void ike_process_new(peer_ctx *ctx, struct isakmp_packet *ikp)
 /*
  * Process an incoming IKE/ISAKMP packet.
  */
-void ike_process_isakmp(peer_ctx *ctx, struct isakmp_packet *ikp)
+void
+ike_process_isakmp(peer_ctx *ctx, struct isakmp_packet *ikp)
 {
 	/*
 	 * need some (simple) mechanism to clean out old states after
 	 * some time, maybe: if r_cookie == 0, reset to STATE_NEW
 	 */
 
-	switch(ctx->state) {
+	switch (ctx->state) {
 		case STATE_NEW:
 			ike_process_new(ctx, ikp);
 			break;

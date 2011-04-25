@@ -29,15 +29,16 @@
 
 /* message_iv */
 
-message_iv * message_iv_get(uint32_t id, message_iv **head)
+message_iv *
+message_iv_get(uint32_t id, message_iv **head)
 {
 	message_iv *found = NULL;
-	for(message_iv *p = *head; p && !found; p = p->next) {
-		if(p->id == id)
+	for (message_iv *p = *head; p && !found; p = p->next) {
+		if (p->id == id)
 			found = p;
 	}
 
-	if(!found) {
+	if (!found) {
 		mem_allocate(&found, sizeof(message_iv));
 		memset(found, 0, sizeof(message_iv));
 		found->id = id;
@@ -48,9 +49,10 @@ message_iv * message_iv_get(uint32_t id, message_iv **head)
 	return found;
 }
 
-void message_iv_free(message_iv *msg_iv)
+void
+message_iv_free(message_iv *msg_iv)
 {
-	if(msg_iv->next) {
+	if (msg_iv->next) {
 		message_iv_free(msg_iv->next);
 		msg_iv->next = NULL;
 	}
@@ -61,16 +63,17 @@ void message_iv_free(message_iv *msg_iv)
 
 /* peer_ctx */
 
-peer_ctx * peer_ctx_get(datagram *dgm, config *cfg, peer_ctx **head)
+peer_ctx *
+peer_ctx_get(datagram *dgm, config *cfg, peer_ctx **head)
 {
 	peer_ctx *found = NULL;
-	for(peer_ctx *p = *head; p && !found; p = p->next) {
-		if(p->peer_addr.sin_addr.s_addr == dgm->peer_addr.sin_addr.s_addr &&
+	for (peer_ctx *p = *head; p && !found; p = p->next) {
+		if (p->peer_addr.sin_addr.s_addr == dgm->peer_addr.sin_addr.s_addr &&
 			p->peer_addr.sin_port == dgm->peer_addr.sin_port)
 			found = p;
 	}
 
-	if(!found) {
+	if (!found) {
 		mem_allocate(&found, sizeof(peer_ctx));
 		memset(found, 0, sizeof(peer_ctx));
 		found->peer_addr = dgm->peer_addr;
@@ -83,7 +86,8 @@ peer_ctx * peer_ctx_get(datagram *dgm, config *cfg, peer_ctx **head)
 	return found;
 }
 
-void peer_ctx_clear(peer_ctx *ctx)
+void
+peer_ctx_clear(peer_ctx *ctx)
 {
 	mem_free(&ctx->ipsec_id);
 	mem_free(&ctx->ipsec_secret);
@@ -92,12 +96,12 @@ void peer_ctx_clear(peer_ctx *ctx)
 
 	mem_free(&ctx->key);
 	mem_free(&ctx->iv0);
-	if(ctx->msg_iv) {
+	if (ctx->msg_iv) {
 		message_iv_free(ctx->msg_iv);
 		ctx->msg_iv = NULL;
 	}
 
-	if(ctx->dh_group) {
+	if (ctx->dh_group) {
 		group_free(ctx->dh_group);
 		ctx->dh_group = NULL;
 	}
@@ -120,7 +124,8 @@ void peer_ctx_clear(peer_ctx *ctx)
 	mem_free(&ctx->r_hash);
 }
 
-void peer_ctx_reset(peer_ctx *ctx)
+void
+peer_ctx_reset(peer_ctx *ctx)
 {
 	peer_ctx_clear(ctx);
 	memset((uint8_t *)&ctx->state, 0,
@@ -128,9 +133,10 @@ void peer_ctx_reset(peer_ctx *ctx)
 	ctx->state = STATE_NEW;
 }
 
-void peer_ctx_free(peer_ctx *ctx)
+void
+peer_ctx_free(peer_ctx *ctx)
 {
-	if(ctx->next) {
+	if (ctx->next) {
 		peer_ctx_free(ctx->next);
 		ctx->next = NULL;
 	}
