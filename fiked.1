@@ -67,7 +67,7 @@ other users on the system.
 .B \-u
 Drop privileges after opening sockets and files by setting the real,
 effective and stored user IDs to \fIuser\fP and loading the appropriate
-primary and anxillary groups.  This potentially reduces the impact of
+primary and ancillary groups.  This potentially reduces the impact of
 security vulnerabilities in \fIfiked\fP, because the ISAKMP / IKE
 handling code, which is most likely to be vulnerable, will not be
 running with super user privileges.
@@ -83,7 +83,7 @@ Append captured XAUTH user credentials to \fIfile\fP using a grep friendly
 format, including the \fIsecret\fP, group id, and \fIgateway\fP address.
 .TP
 .B \-L
-Append verbous logging to \fIfile\fP instead of just standard output.
+Append verbose logging to \fIfile\fP instead of just standard output.
 If \fB-q\fP is also given, log to \fIfile\fP only.
 .TP
 .B \-q
